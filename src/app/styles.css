@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-workbench: #e8ece7;
+  --color-paper: #fffdf7;
+  --color-ink: #20231f;
+  --color-graphite: #6c706b;
+  --color-line: #cbd1c9;
+  --color-line-strong: #929990;
+  --color-cinnabar: #b74736;
+  --color-cinnabar-soft: #f4e2dc;
+  --color-jade: #3e7665;
+  --color-jade-soft: #dcebe4;
+  --font-display: ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-data: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono',
+    monospace;
+  --shadow-paper: 0 18px 55px rgb(32 35 31 / 10%);
+}
+
+:root {
+  color: var(--color-ink);
+  background: var(--color-workbench);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--color-workbench);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--color-workbench);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: var(--color-ink);
+  background: var(--color-cinnabar-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-cinnabar);
+  outline-offset: 3px;
+}
+
+.paper-rules {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    rgb(146 153 144 / 27%) 31px,
+    rgb(146 153 144 / 27%) 32px
+  );
+  background-position-y: 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
