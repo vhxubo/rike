@@ -20,7 +20,7 @@ const rangeOptions = [
 ] satisfies Array<{ label: string; value: StatisticsRange }>
 
 function rangeTitle(range: StatisticsRange, date: string, period: SystemPeriod) {
-  if (range === 'all') return '全部记录'
+  if (range === 'all') return `${period.startDate} — ${period.endDate}`
   if (range === 'month') return formatMonthTitle(date)
   if (range === 'year') return formatYear(date)
   const week = getWeekDates(date).filter((day) => isDateInPeriod(day, period))

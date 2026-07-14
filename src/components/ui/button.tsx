@@ -4,7 +4,7 @@ import { tv, type VariantProps } from 'tailwind-variants'
 import { cn } from '@/lib/cn'
 
 const buttonStyles = tv({
-  base: 'inline-flex min-h-10 items-center justify-center gap-2 border px-4 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45',
+  base: 'inline-flex min-h-10 items-center justify-center gap-2 border px-4 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none',
   variants: {
     variant: {
       primary: 'border-ink bg-ink text-paper hover:bg-ink/90',
@@ -38,4 +38,3 @@ export function Button({ className, variant, size, type = 'button', ...props }: 
     />
   )
 }
-

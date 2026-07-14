@@ -93,8 +93,81 @@ button,
 }
 
 .page-turn-surface {
-  perspective: 1800px;
   touch-action: pan-y;
+}
+
+.page-turn-frame {
+  min-height: 100vh;
+  height: 100vh;
+}
+
+@media (min-width: 640px) {
+  .page-turn-frame {
+    min-height: calc(100vh - 72px);
+    height: calc(100vh - 72px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-turn-frame {
+    min-height: calc(100vh - 80px);
+    height: calc(100vh - 80px);
+  }
+}
+
+.page-turn-surface.stf__parent {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.page-turn-surface .stf__wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.page-turn-surface .stf__block,
+.page-turn-surface .stf__outerShadow,
+.page-turn-surface .stf__innerShadow,
+.page-turn-surface .stf__hardShadow,
+.page-turn-surface .stf__hardInnerShadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.page-turn-surface .stf__block {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  perspective: 2000px;
+}
+
+.page-turn-surface .stf__item {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  display: none;
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.page-turn-surface .stf__item:last-child:not(.--simple) > :not(.paper-rules),
+.page-turn-frame[data-page-turn-direction='back'] .stf__item:not(.--simple) > :not(.paper-rules) {
+  visibility: hidden;
+}
+
+.page-turn-page > main {
+  min-height: 100%;
+}
+
+.page-turn-page {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 :focus-visible {
@@ -136,15 +209,6 @@ button,
 
 @keyframes exemption-flow {
   to { background-position: -220% 0; }
-}
-
-.daily-guidance-heart svg {
-  animation: daily-guidance-heart-pop 0.28s ease-out;
-  filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--color-cinnabar) 45%, transparent));
-}
-
-@keyframes daily-guidance-heart-pop {
-  50% { transform: scale(1.24); }
 }
 
 @media (prefers-reduced-motion: reduce) {

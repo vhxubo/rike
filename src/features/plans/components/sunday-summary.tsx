@@ -1,6 +1,9 @@
+import { useState } from 'react'
+
+import { readSystemConfig } from '@/features/system-config'
 import { getWeekDates } from '@/features/plans/date'
 import type { Subject } from '@/features/plans/model'
-import { calculateWeekSummary } from '@/features/plans/statistics'
+import { calculateStatisticsSummary } from '@/features/plans/statistics'
 import { usePlanStore } from '@/features/plans/store'
 
 const subjects: Subject[] = ['语文', '英语', '数学', '化学', '生物', '物理']
@@ -9,11 +12,21 @@ interface SundaySummaryProps {
   date: string
 }
 
-function Metric({ label, value, suffix }: { label: string; value: number; suffix: string }) {
+function Metric({
+  className,
+  label,
+  value,
+  suffix,
+}: {
+  className?: string
+  label: string
+  value: number
+  suffix: string
+}) {
   return (
-    <div className="border-b border-line py-5 sm:border-b-0 sm:border-r sm:px-5 last:border-0">
+    <div className={`p-3 sm:p-4 ${className ?? ''}`}>
       <p className="font-data text-[11px] text-graphite">{label}</p>
-      <p className="mt-2 font-display text-3xl font-semibold text-ink">
+      <p className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
         {value}
         <span className="ml-1 text-sm font-normal text-graphite">{suffix}</span>
       </p>
@@ -24,7 +37,7 @@ function Metric({ label, value, suffix }: { label: string; value: number; suffix
 export function SundaySummary({ date }: SundaySummaryProps) {
   const [{ period }] = useState(readSystemConfig)
   const records = usePlanStore((state) => state.records)
-  const summary = calculateWeekSummary(date, records, undefined, period)
+  const summary = calculateStatisticsSummary('week', date, records, undefined, period)
   const weekDates = getWeekDates(date)
   const maxMissed = Math.max(1, ...Object.values(summary.missedBySubject))
 
@@ -37,12 +50,13 @@ export function SundaySummary({ date }: SundaySummaryProps) {
         <h2 className="mt-2 font-display text-3xl font-semibold">本周统计</h2>
       </header>
 
-      <section aria-label="本周数量统计" className="border-y border-line sm:grid sm:grid-cols-5">
-        <Metric label="计划文字" suffix="字" value={summary.planCharacterCount} />
+      <section aria-label="本周数量统计" className="grid grid-cols-3 border-y border-line">
+        <Metric className="border-b border-r border-line" label="计划总数" suffix="项" value={summary.totalPlans} />
+        <Metric className="border-b border-r border-line" label="已完成" suffix="项" value={summary.completedPlans} />
+        <Metric className="border-b border-line" label="未完成" suffix="项" value={summary.missedPlans} />
+        <Metric className="border-r border-line" label="完成率" suffix="%" value={summary.completionRate} />
+        <Metric className="border-r border-line" label="计划文字" suffix="字" value={summary.planCharacterCount} />
         <Metric label="日结文字" suffix="字" value={summary.journalCharacterCount} />
-        <Metric label="计划总数" suffix="项" value={summary.totalPlans} />
-        <Metric label="已完成" suffix="项" value={summary.completedPlans} />
-        <Metric label="未完成" suffix="项" value={summary.missedPlans} />
       </section>
 
       <section aria-labelledby="missed-subject-heading">
@@ -72,6 +86,3 @@ export function SundaySummary({ date }: SundaySummaryProps) {
     </div>
   )
 }
-import { useState } from 'react'
-
-import { readSystemConfig } from '@/features/system-config'

@@ -28,6 +28,7 @@
     "motion": "^12.23.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-pageflip": "^2.0.3",
     "tailwind-merge": "^3.3.0",
     "tailwind-variants": "^3.1.0",
     "vite-plugin-pwa": "^1.0.1",

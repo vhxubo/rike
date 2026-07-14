@@ -78,20 +78,11 @@ function getStatisticsDates(
   else if (range === 'month') dates = getMonthDates(anchorDate)
   else if (range === 'year') dates = getYearDates(anchorDate)
   else {
-    const historicalRecordDates = Object.keys(records)
+    dates = Object.keys(records)
       .filter((date) =>
         compareISODates(date, asOfDate) <= 0 && (!period || isDateInPeriod(date, period)),
       )
       .sort()
-    const startDate = historicalRecordDates[0] ?? period?.startDate ?? asOfDate
-    const startYearDates = getYearDates(startDate)
-    const endYearDates = getYearDates(asOfDate)
-    dates = [...startYearDates]
-    for (let year = Number(startDate.slice(0, 4)) + 1; year <= Number(asOfDate.slice(0, 4)); year += 1) {
-      if (year === Number(asOfDate.slice(0, 4))) dates.push(...endYearDates)
-      else dates.push(...getYearDates(`${year}-01-01`))
-    }
-    dates = dates.filter((date) => compareISODates(date, startDate) >= 0)
   }
 
   return dates.filter(

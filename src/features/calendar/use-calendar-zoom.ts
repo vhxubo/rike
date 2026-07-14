@@ -7,6 +7,8 @@ import {
   getZoomedView,
 } from '@/features/plans/gestures'
 
+const ZOOM_COOLDOWN_MS = 320
+
 function touchDistance(touches: TouchList) {
   const [first, second] = [touches[0], touches[1]]
   return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
@@ -31,38 +33,44 @@ export function useCalendarZoom(
     if (!surface) return
 
     let initialDistance: number | null = null
-    let touchLocked = false
+    let gestureActive = false
     let wheelDelta = 0
     let wheelLocked = false
     let wheelTimer: ReturnType<typeof setTimeout> | undefined
-    let gestureLocked = false
+    let lastZoomAt = 0
+    let zoomLocked = false
 
     const applyZoom = (direction: 'in' | 'out') => {
+      const now = Date.now()
+      if (now - lastZoomAt < ZOOM_COOLDOWN_MS) return
       const nextView = getZoomedView(latestView.current, direction)
-      if (nextView !== latestView.current) latestOnViewChange.current(nextView)
+      if (nextView === latestView.current) return
+      lastZoomAt = now
+      latestOnViewChange.current(nextView)
     }
 
     const startTouch = (event: TouchEvent) => {
       if (event.touches.length < 2) return
+      if (initialDistance !== null || gestureActive) return
       initialDistance = touchDistance(event.touches)
-      touchLocked = false
+      zoomLocked = false
       latestOnZoomStart.current()
     }
 
     const moveTouch = (event: TouchEvent) => {
       if (event.touches.length < 2 || initialDistance === null) return
       event.preventDefault()
-      if (touchLocked) return
+      if (zoomLocked) return
       const direction = getPinchZoomDirection(initialDistance, touchDistance(event.touches))
       if (!direction) return
-      touchLocked = true
+      zoomLocked = true
       applyZoom(direction)
     }
 
     const endTouch = (event: TouchEvent) => {
       if (event.touches.length >= 2) return
       initialDistance = null
-      touchLocked = false
+      if (!gestureActive) zoomLocked = false
     }
 
     const handleWheel = (event: WheelEvent) => {
@@ -88,23 +96,26 @@ export function useCalendarZoom(
 
     const startGesture = (event: Event) => {
       event.preventDefault()
-      gestureLocked = false
+      gestureActive = true
+      if (initialDistance !== null) return
+      zoomLocked = false
       latestOnZoomStart.current()
     }
 
     const changeGesture = (event: Event) => {
       event.preventDefault()
-      if (gestureLocked) return
+      if (zoomLocked) return
       const scale = 'scale' in event && typeof event.scale === 'number' ? event.scale : 1
       const direction = getPinchZoomDirection(100, scale * 100, 12)
       if (!direction) return
-      gestureLocked = true
+      zoomLocked = true
       applyZoom(direction)
     }
 
     const endGesture = (event: Event) => {
       event.preventDefault()
-      gestureLocked = false
+      gestureActive = false
+      if (initialDistance === null) zoomLocked = false
     }
 
     surface.addEventListener('touchstart', startTouch, { passive: true })

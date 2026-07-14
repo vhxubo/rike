@@ -1,18 +1,18 @@
-import { animate, useMotionValue, useReducedMotion } from 'motion/react'
+import HTMLFlipBook from 'react-pageflip'
+import { useReducedMotion } from 'motion/react'
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent,
   type ReactNode,
 } from 'react'
 
-import { BookPageRenderer } from '@/features/calendar/book-page-renderer'
-import { PageTextureCache } from '@/features/calendar/page-texture-cache'
-import { canStartDateSwipe, getDateSwipeAmount } from '@/features/plans/gestures'
-import { cn } from '@/lib/cn'
+import { canStartDateSwipe } from '@/features/plans/gestures'
 
 export interface PageTurnHandle {
   turn: (amount: -1 | 1) => void
@@ -20,7 +20,6 @@ export interface PageTurnHandle {
 }
 
 interface PageTurnProps {
-  adjacentKeys: { previous: string; next: string }
   canTurn?: (amount: -1 | 1) => boolean
   children: ReactNode
   className?: string
@@ -29,25 +28,37 @@ interface PageTurnProps {
   renderAdjacent: (amount: -1 | 1) => ReactNode
 }
 
-interface PointerSession {
-  id: number
-  startX: number
-  startY: number
-  lastX: number
-  lastTime: number
-  velocityX: number
-  active: boolean
+interface PageFlipInstance {
+  flipNext: () => void
+  flipPrev: () => void
+  turnToPage: (page: number) => void
 }
 
-function pageElement(wrapper: HTMLDivElement | null) {
-  return wrapper?.firstElementChild instanceof HTMLElement
-    ? wrapper.firstElementChild
-    : wrapper
+interface SwipeSession {
+  edge: 'left' | 'right'
+  id: number
+  horizontal: boolean
+  startX: number
+  startY: number
 }
+
+const BookPage = forwardRef<HTMLDivElement, { children: ReactNode; inactive?: boolean }>(
+  function BookPage({ children, inactive = false }, ref) {
+    return (
+      <div
+        aria-hidden={inactive || undefined}
+        className="page-turn-page paper-rules h-full overflow-y-auto bg-paper"
+        inert={inactive || undefined}
+        ref={ref}
+      >
+        {children}
+      </div>
+    )
+  },
+)
 
 export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageTurn(
   {
-    adjacentKeys,
     canTurn = () => true,
     children,
     className,
@@ -58,377 +69,175 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   ref,
 ) {
   const reduceMotion = useReducedMotion()
-  const textureCacheRef = useRef<PageTextureCache | null>(null)
-  if (!textureCacheRef.current) textureCacheRef.current = new PageTextureCache()
-  const textureCache = textureCacheRef.current
-  const progress = useMotionValue(0)
-  const pointerY = useMotionValue(0.6)
-  const foldCornerY = useRef<0 | 1>(1)
-  const directionRef = useRef<-1 | 1>(1)
-  const [direction, setDirection] = useState<-1 | 1 | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [canvasReady, setCanvasReady] = useState(false)
-  const canvasReadyRef = useRef(false)
-  const fallbackRef = useRef(false)
-  const session = useRef<PointerSession | null>(null)
+  const pageFlip = useRef<PageFlipInstance | null>(null)
+  const pendingTurn = useRef<-1 | 1 | null>(null)
   const surface = useRef<HTMLDivElement>(null)
-  const currentPage = useRef<HTMLDivElement>(null)
-  const targetPage = useRef<HTMLDivElement>(null)
-  const previousPrefetch = useRef<HTMLDivElement>(null)
-  const nextPrefetch = useRef<HTMLDivElement>(null)
-  const canvas = useRef<HTMLCanvasElement>(null)
-  const renderer = useRef<BookPageRenderer | null>(null)
-  const preparation = useRef<Promise<void> | null>(null)
-  const preparationGeneration = useRef(0)
-  const animationToken = useRef(0)
+  const swipe = useRef<SwipeSession | null>(null)
+  const [bookSize, setBookSize] = useState<{ height: number; width: number } | null>(null)
 
-  const textureKey = (key: string, element: HTMLElement) => {
-    const bounds = element.getBoundingClientRect()
-    const theme = document.documentElement.dataset.theme ?? 'light'
-    return `${key}:${theme}:${Math.round(bounds.width)}x${Math.round(bounds.height)}:${window.devicePixelRatio || 1}`
-  }
-
-  const activateFallback = () => {
-    const activeRenderer = renderer.current
-    renderer.current = null
-    activeRenderer?.dispose()
-    if (canvas.current) canvas.current.style.display = 'none'
-    if (currentPage.current) {
-      currentPage.current.style.opacity = '1'
-      currentPage.current.style.transform = ''
+  useLayoutEffect(() => {
+    const element = surface.current
+    if (!element) return
+    const measure = () => {
+      const next = { height: element.clientHeight, width: element.clientWidth }
+      if (!next.height || !next.width) return
+      setBookSize((current) =>
+        current?.height === next.height && current.width === next.width ? current : next,
+      )
     }
-    if (targetPage.current) {
-      targetPage.current.style.opacity = ''
-      targetPage.current.style.transform = ''
-      targetPage.current.style.zIndex = ''
-    }
-    canvasReadyRef.current = false
-    fallbackRef.current = true
-    setCanvasReady(false)
-  }
-
-  const draw = () => {
-    const value = progress.get()
-    const turnDirection = directionRef.current
-    if (renderer.current && canvasReadyRef.current) {
-      try {
-        renderer.current.render(
-          value,
-          turnDirection === -1,
-          pointerY.get(),
-          foldCornerY.current,
-        )
-      } catch {
-        activateFallback()
-        draw()
-      }
-      return
-    }
-    if (!fallbackRef.current) return
-
-    const current = currentPage.current
-    const target = targetPage.current
-    if (turnDirection === 1 && current) {
-      current.style.transform = `translate3d(${-value * 100}%, 0, 0)`
-    }
-    if (turnDirection === -1 && target) {
-      target.style.opacity = '1'
-      target.style.transform = `translate3d(${(value - 1) * 100}%, 0, 0)`
-      target.style.zIndex = '30'
-    }
-  }
-
-  useEffect(() => {
-    const unsubscribeProgress = progress.on('change', draw)
-    const unsubscribePointer = pointerY.on('change', draw)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    window.visualViewport?.addEventListener('resize', measure)
     return () => {
-      unsubscribeProgress()
-      unsubscribePointer()
+      observer.disconnect()
+      window.visualViewport?.removeEventListener('resize', measure)
     }
-  }, [pointerY, progress])
-
-  useEffect(() => {
-    if (reduceMotion) return
-    const candidates = [
-      { baseKey: currentKey, element: pageElement(currentPage.current) },
-      { baseKey: adjacentKeys.previous, element: pageElement(previousPrefetch.current) },
-      { baseKey: adjacentKeys.next, element: pageElement(nextPrefetch.current) },
-    ].filter(
-      (candidate): candidate is { baseKey: string; element: HTMLElement } =>
-        Boolean(candidate.element),
-    )
-    if (!candidates.length) return
-    const capture = () => {
-      const keys = candidates.map(({ baseKey, element }) => textureKey(baseKey, element))
-      textureCache.retain(keys)
-      for (const [index, candidate] of candidates.entries()) {
-        void textureCache.capture(keys[index], candidate.element).catch(() => undefined)
-      }
-    }
-    let idleHandle: number | null = null
-    const delayHandle = window.setTimeout(() => {
-      if (typeof window.requestIdleCallback === 'function') {
-        idleHandle = window.requestIdleCallback(capture)
-        return
-      }
-      capture()
-    }, 180)
-    return () => {
-      window.clearTimeout(delayHandle)
-      if (idleHandle !== null) window.cancelIdleCallback(idleHandle)
-    }
-  }, [adjacentKeys.next, adjacentKeys.previous, currentKey, reduceMotion])
-
-  useEffect(() => () => {
-    preparationGeneration.current += 1
-    animationToken.current += 1
-    renderer.current?.dispose()
-    renderer.current = null
-    textureCache.clear()
   }, [])
 
-  const resetVisuals = () => {
-    renderer.current?.dispose()
-    renderer.current = null
-    if (canvas.current) {
-      const gl = canvas.current.getContext('webgl')
-      gl?.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-      canvas.current.style.display = 'none'
-    }
-    if (currentPage.current) {
-      currentPage.current.style.opacity = '1'
-      currentPage.current.style.transform = ''
-    }
-    if (targetPage.current) {
-      targetPage.current.style.opacity = ''
-      targetPage.current.style.transform = ''
-      targetPage.current.style.zIndex = ''
-    }
-    setCanvasReady(false)
-    canvasReadyRef.current = false
-    fallbackRef.current = false
-  }
+  const reset = useCallback(() => {
+    pendingTurn.current = null
+    if (surface.current) delete surface.current.dataset.pageTurnDirection
+    pageFlip.current?.turnToPage(1)
+  }, [])
 
-  const reset = () => {
-    preparationGeneration.current += 1
-    progress.set(0)
-    pointerY.set(0.6)
-    foldCornerY.current = 1
-    resetVisuals()
-    setDirection(null)
-    setBusy(false)
-    session.current = null
-    preparation.current = null
-  }
-
-  const prepareRenderer = (amount: -1 | 1) => {
-    if (reduceMotion) return Promise.resolve()
-    if (preparation.current) return preparation.current
-
-    const generation = ++preparationGeneration.current
-    preparation.current = new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        const sourceWrapper = amount === 1 ? currentPage.current : targetPage.current
-        const source = pageElement(sourceWrapper)
-        const canvasElement = canvas.current
-        const bounds = pageElement(currentPage.current)?.getBoundingClientRect()
-        if (!source || !canvasElement || !bounds) {
-          fallbackRef.current = true
-          resolve()
-          return
-        }
-
-        const baseKey = amount === 1 ? currentKey : adjacentKeys.previous
-        const key = textureKey(baseKey, source)
-        void textureCache.capture(key, source).then((captured) => {
-          if (generation !== preparationGeneration.current) {
-            resolve()
-            return
-          }
-          try {
-            const previousRenderer = renderer.current
-            renderer.current = null
-            previousRenderer?.dispose()
-            const nextRenderer = new BookPageRenderer(canvasElement, {
-              onContextLost: () => {
-                if (renderer.current !== nextRenderer) return
-                activateFallback()
-                draw()
-              },
-            })
-            nextRenderer.resize(bounds.width, bounds.height)
-            nextRenderer.setTexture(captured)
-            renderer.current = nextRenderer
-            nextRenderer.render(
-              progress.get(),
-              amount === -1,
-              pointerY.get(),
-              foldCornerY.current,
-            )
-            canvasReadyRef.current = true
-            canvasElement.style.display = 'block'
-            setCanvasReady(true)
-            if (amount === 1 && currentPage.current) currentPage.current.style.opacity = '0'
-          } catch {
-            activateFallback()
-            draw()
-          }
-          resolve()
-        }).catch(() => {
-          activateFallback()
-          draw()
-          resolve()
-        })
-      })
-    })
-    return preparation.current
-  }
-
-  const finishTurn = (amount: -1 | 1, preservePointer = false) => {
-    if (busy || !canTurn(amount)) return
-    if (!preservePointer) {
-      pointerY.set(0.6)
-      foldCornerY.current = 1
-    }
-    setBusy(true)
-    directionRef.current = amount
-    setDirection(amount)
-
+  const turn = useCallback((amount: -1 | 1) => {
+    if (!canTurn(amount)) return
     if (reduceMotion) {
       onTurn(amount)
-      reset()
       return
     }
-
-    const token = ++animationToken.current
-    void prepareRenderer(amount).then(() => {
-      if (token !== animationToken.current) return
-      void animate(progress, 1, {
-        type: 'spring',
-        stiffness: 150,
-        damping: 22,
-        mass: 0.9,
-      }).then(() => {
-        if (token !== animationToken.current) return
-        onTurn(amount)
-        reset()
-      })
-    })
-  }
-
-  const cancel = () => {
-    const token = ++animationToken.current
-    session.current = null
-    if (reduceMotion || progress.get() === 0) {
-      reset()
+    pendingTurn.current = amount
+    if (surface.current) {
+      if (amount === -1) surface.current.dataset.pageTurnDirection = 'back'
+      else delete surface.current.dataset.pageTurnDirection
+    }
+    if (pageFlip.current) {
+      if (amount === 1) pageFlip.current.flipNext()
+      else pageFlip.current.flipPrev()
       return
     }
-    setBusy(true)
-    void animate(progress, 0, { type: 'spring', stiffness: 235, damping: 28 }).then(() => {
-      if (token === animationToken.current) reset()
+    requestAnimationFrame(() => {
+      if (amount === 1) pageFlip.current?.flipNext()
+      else pageFlip.current?.flipPrev()
     })
-  }
+  }, [canTurn, onTurn, reduceMotion])
 
-  useImperativeHandle(ref, () => ({ turn: finishTurn, cancel }))
+  useEffect(() => {
+    const frame = requestAnimationFrame(reset)
+    return () => cancelAnimationFrame(frame)
+  }, [currentKey, reset])
+
+  useImperativeHandle(ref, () => ({ turn, cancel: reset }), [reset, turn])
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (busy || !canStartDateSwipe(event.target)) return
-    if (session.current) {
-      cancel()
+    if (!event.isPrimary) {
+      swipe.current = null
       return
     }
-
-    event.currentTarget.setPointerCapture?.(event.pointerId)
+    if (!canStartDateSwipe(event.target)) return
     const bounds = event.currentTarget.getBoundingClientRect()
-    const initialPointerY = bounds.height
-      ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height))
-      : 0.6
-    pointerY.set(initialPointerY)
-    foldCornerY.current = initialPointerY < 0.5 ? 0 : 1
-    session.current = {
+    const edgeWidth = Math.min(96, bounds.width * 0.22)
+    const edge = event.clientX - bounds.left <= edgeWidth
+      ? 'left'
+      : bounds.right - event.clientX <= edgeWidth
+        ? 'right'
+        : null
+    if (!edge) return
+    swipe.current = {
+      edge,
       id: event.pointerId,
+      horizontal: false,
       startX: event.clientX,
       startY: event.clientY,
-      lastX: event.clientX,
-      lastTime: event.timeStamp,
-      velocityX: 0,
-      active: false,
     }
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const current = session.current
-    if (!current || current.id !== event.pointerId || busy) return
-
+    const current = swipe.current
+    if (!current || current.id !== event.pointerId) return
     const offsetX = event.clientX - current.startX
     const offsetY = event.clientY - current.startY
-    if (!current.active) {
-      if (Math.abs(offsetX) < 10) return
-      if (Math.abs(offsetX) <= Math.abs(offsetY) * 1.15) {
-        session.current = null
+    if (!current.horizontal) {
+      if (Math.abs(offsetX) < 12 && Math.abs(offsetY) < 12) return
+      if (Math.abs(offsetX) <= Math.abs(offsetY)) {
+        swipe.current = null
         return
       }
-      current.active = true
-      const nextDirection = offsetX < 0 ? 1 : -1
-      if (!canTurn(nextDirection)) {
-        session.current = null
-        return
-      }
-      directionRef.current = nextDirection
-      setDirection(nextDirection)
-      void prepareRenderer(nextDirection)
+      current.horizontal = true
     }
-
     event.preventDefault()
-    const bounds = event.currentTarget.getBoundingClientRect()
-    pointerY.set(bounds.height ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) : 0.6)
-    const elapsed = Math.max(1, event.timeStamp - current.lastTime)
-    current.velocityX = ((event.clientX - current.lastX) / elapsed) * 1000
-    current.lastX = event.clientX
-    current.lastTime = event.timeStamp
-    progress.set(Math.min(1, Math.abs(offsetX) / Math.max(1, bounds.width)))
   }
 
-  const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
-    const current = session.current
-    if (!current || current.id !== event.pointerId) return
-    const amount = getDateSwipeAmount(event.clientX - current.startX, current.velocityX)
-    session.current = null
-    if (amount) finishTurn(amount, true)
-    else cancel()
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const current = swipe.current
+    swipe.current = null
+    if (!current || current.id !== event.pointerId || !current.horizontal) return
+    const offsetX = event.clientX - current.startX
+    if (current.edge === 'left' && offsetX >= 48) turn(-1)
+    if (current.edge === 'right' && offsetX <= -48) turn(1)
   }
 
   return (
     <div
-      className={cn('page-turn-surface relative overflow-visible', className)}
-      onPointerCancel={cancel}
+      className={`page-turn-frame ${className ?? ''}`}
+      onPointerCancel={() => { swipe.current = null }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
+      onPointerUp={handlePointerUp}
       ref={surface}
     >
-      {direction && (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none"
-          inert
-          ref={targetPage}
+      {bookSize && (
+        <HTMLFlipBook
+          autoSize={false}
+          className="page-turn-surface"
+          clickEventForward
+          drawShadow
+          flippingTime={reduceMotion ? 1 : 700}
+          height={bookSize.height}
+          key={`${bookSize.width}:${bookSize.height}`}
+          maxHeight={960}
+          maxShadowOpacity={0.38}
+          maxWidth={1024}
+          minHeight={bookSize.height}
+          minWidth={bookSize.width}
+          mobileScrollSupport
+          onInit={(event) => {
+            pageFlip.current = event.object as PageFlipInstance
+            reset()
+          }}
+          onFlip={(event) => {
+            const amount = pendingTurn.current
+            pendingTurn.current = null
+            if (amount) {
+              if (canTurn(amount)) onTurn(amount)
+              else reset()
+              return
+            }
+            if (event.data === 0) {
+              if (canTurn(-1)) onTurn(-1)
+              else reset()
+            }
+            if (event.data === 2) {
+              if (canTurn(1)) onTurn(1)
+              else reset()
+            }
+          }}
+          showCover={false}
+          showPageCorners={false}
+          size="fixed"
+          startPage={1}
+          startZIndex={0}
+          style={{ maxWidth: '100%' }}
+          swipeDistance={32}
+          useMouseEvents={false}
+          usePortrait
+          width={bookSize.width}
         >
-          {renderAdjacent(direction)}
-        </div>
-      )}
-      <div className="relative z-10" ref={currentPage}>{children}</div>
-      <canvas
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 z-20"
-        ref={canvas}
-        style={{ display: canvasReady ? 'block' : 'none' }}
-      />
-      {!direction && (
-        <div aria-hidden="true" className="pointer-events-none absolute left-[-220vw] top-0 w-full" inert>
-          <div ref={previousPrefetch}>{renderAdjacent(-1)}</div>
-          <div ref={nextPrefetch}>{renderAdjacent(1)}</div>
-        </div>
+          <BookPage inactive>{renderAdjacent(-1)}</BookPage>
+          <BookPage>{children}</BookPage>
+          <BookPage inactive>{renderAdjacent(1)}</BookPage>
+        </HTMLFlipBook>
       )}
     </div>
   )

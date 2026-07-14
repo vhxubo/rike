@@ -41,7 +41,6 @@ import {
   addISOMonth,
   addISOWeek,
   addISOYear,
-  getCalendarMonthDates,
   getDayKind,
   getTodayISO,
   getWeekDates,
@@ -98,9 +97,9 @@ function DailyGuidanceCard({
   const key = favoriteKey(guidance.date, guidance.id)
 
   return (
-    <blockquote className="flex items-start gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
-      <Quote aria-hidden="true" className="mt-1 shrink-0 text-cinnabar" size={18} strokeWidth={1.6} />
-      <div className="flex min-w-0 flex-1 items-start gap-2">
+    <blockquote className="flex items-start gap-2 border-l border-cinnabar/45 bg-paper/90 py-1.5 pl-3 sm:mx-auto sm:max-w-2xl">
+      <Quote aria-hidden="true" className="mt-0.5 shrink-0 text-cinnabar" size={16} strokeWidth={1.6} />
+      <div className="flex min-w-0 flex-1 items-start gap-1">
         <button
           aria-label="复制每日一句"
           className="group min-w-0 flex-1 cursor-copy border-0 bg-transparent p-0 text-left"
@@ -108,27 +107,26 @@ function DailyGuidanceCard({
           onClick={() => onCopy(guidance.text, key)}
           type="button"
         >
-          <p className="font-display text-base leading-7 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-lg">
+          <p className="font-display text-sm leading-6 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-base">
             {guidance.text}
           </p>
           {copied && <span className="font-data text-[10px] text-jade">已复制</span>}
         </button>
-        {interactive && (
-          <IconButton
-            aria-pressed={isFavorite}
-            className={isFavorite ? 'daily-guidance-heart !text-cinnabar' : 'text-graphite hover:!text-cinnabar'}
-            label={isFavorite ? '取消收藏每日一句' : '收藏每日一句'}
-            onClick={() => onToggleFavorite(guidance.date, guidance)}
-            variant="ghost"
-          >
-            <Heart
-              aria-hidden="true"
-              fill={isFavorite ? 'currentColor' : 'none'}
-              size={19}
-              strokeWidth={1.7}
-            />
-          </IconButton>
-        )}
+        <IconButton
+          aria-pressed={isFavorite}
+          className={isFavorite ? '!size-8 !min-h-8 !text-cinnabar' : '!size-8 !min-h-8 text-graphite hover:!text-cinnabar'}
+          disabled={!interactive}
+          label={isFavorite ? '取消收藏每日一句' : '收藏每日一句'}
+          onClick={() => onToggleFavorite(guidance.date, guidance)}
+          variant="ghost"
+        >
+          <Heart
+            aria-hidden="true"
+            fill={isFavorite ? 'currentColor' : 'none'}
+            size={17}
+            strokeWidth={1.7}
+          />
+        </IconButton>
       </div>
     </blockquote>
   )
@@ -241,7 +239,7 @@ function CalendarPage({
 
   return (
     <PaperSheet>
-      <RuledSection className="border-b border-line py-4">
+      <RuledSection className="border-b border-line py-2">
         <DailyGuidanceCard
           copied={copiedKey === favoriteKey(guidance.date, guidance.id)}
           guidance={guidance}
@@ -319,7 +317,6 @@ export function DailyPlanPage() {
   const selectedDate = usePlanStore((state) => state.selectedDate)
   const calendarView = usePlanStore((state) => state.calendarView)
   const hydrationState = usePlanStore((state) => state.hydrationState)
-  const records = usePlanStore((state) => state.records)
   const setCalendarView = usePlanStore((state) => state.setCalendarView)
   const setCalendarCursor = usePlanStore((state) => state.setCalendarCursor)
   const setSelectedDate = usePlanStore((state) => state.setSelectedDate)
@@ -481,7 +478,7 @@ export function DailyPlanPage() {
   const canNavigateCalendar = (date: string, amount: -1 | 1) =>
     isDateInPeriod(getAdjacentDate(date, calendarView, amount), period)
 
-  const renderCalendarPage = (date: string, interactive: boolean) => (
+  const renderCalendarPage = (date: string, interactive = true) => (
     <CalendarPage
       canNavigate={(amount) => canNavigateCalendar(date, amount)}
       date={date}
@@ -489,7 +486,7 @@ export function DailyPlanPage() {
       guidance={getDailyGuidance(today)}
       hydrationState={hydrationState}
       interactive={interactive}
-      onNavigate={(amount) => interactive && pageTurnRef.current?.turn(amount)}
+      onNavigate={(amount) => pageTurnRef.current?.turn(amount)}
       onCopy={copyGuidance}
       onToggleFavorite={toggleFavorite}
       copiedKey={copiedKey}
@@ -497,85 +494,63 @@ export function DailyPlanPage() {
     />
   )
 
-  const pageTextureKey = (date: string) => {
-    const visibleDates = calendarView === 'day'
-      ? [date]
-      : calendarView === 'week'
-        ? getWeekDates(date)
-        : getCalendarMonthDates(date)
-    const contentRevision = visibleDates.map((visibleDate) => [
-      visibleDate,
-      records[visibleDate] ?? null,
-    ])
-    return `${calendarView}:${date}:${getDailyGuidance(today).id}:${hydrationState}:${JSON.stringify(contentRevision)}`
-  }
-
   return (
     <AppShell>
-      <StickyWorkspaceHeader
-        canGoBack={Boolean(returnSnapshot) && !isCanonicalTodayDay}
-        onBack={goBack}
-        onNavigate={openDestination}
-        onOpenWeekSummary={openWeekSummary}
-      />
-      <div ref={workspaceRef}>
-        {workspacePage === 'calendar' && (
-          <PageTurn
-            adjacentKeys={{
-              previous: pageTextureKey(
-                canNavigateCalendar(selectedDate, -1)
-                  ? getAdjacentDate(selectedDate, calendarView, -1)
-                  : selectedDate,
-              ),
-              next: pageTextureKey(
-                canNavigateCalendar(selectedDate, 1)
-                  ? getAdjacentDate(selectedDate, calendarView, 1)
-                  : selectedDate,
-              ),
-            }}
-            canTurn={(amount) => canNavigateCalendar(selectedDate, amount)}
-            currentKey={pageTextureKey(selectedDate)}
-            onTurn={navigateRange}
-            ref={pageTurnRef}
-            renderAdjacent={(amount) => renderCalendarPage(
-              canNavigateCalendar(selectedDate, amount)
-                ? getAdjacentDate(selectedDate, calendarView, amount)
-                : selectedDate,
-              false,
-            )}
-          >
-            {renderCalendarPage(selectedDate, true)}
-          </PageTurn>
-        )}
-        {workspacePage === 'week-summary' && <WeekSummaryPage anchorDate={pageAnchor} />}
-        {workspacePage === 'favorites' && (
-          <FavoritesPage
-            copiedKey={copiedKey}
-            favorites={favorites}
-            onCopy={copyGuidance}
-            onRemove={(favorite) =>
-              setFavorites((current) =>
-                current.filter(
-                  (item) => favoriteKey(item.date, item.guidanceId) !== favoriteKey(favorite.date, favorite.guidanceId),
-                ),
-              )
-            }
-          />
-        )}
-        {workspacePage === 'fishing-wheel' && <FishingWheelPage />}
-        {workspacePage === 'statistics' && (
-          <PaperSheet>
-            <RuledSection className="pb-10 sm:pb-12">
-              <StatisticsPage
-                anchorDate={pageAnchor}
-                canNavigate={canNavigateStatistics}
-                onNavigate={navigateStatistics}
-                onRangeChange={setStatisticsRange}
-                range={statisticsRange}
-              />
-            </RuledSection>
-          </PaperSheet>
-        )}
+      <div>
+        <StickyWorkspaceHeader
+          canGoBack={Boolean(returnSnapshot) && !isCanonicalTodayDay}
+          onBack={goBack}
+          onNavigate={openDestination}
+          onOpenWeekSummary={openWeekSummary}
+        />
+        <div ref={workspaceRef}>
+          {workspacePage === 'calendar' && (
+            <PageTurn
+              canTurn={(amount) => canNavigateCalendar(selectedDate, amount)}
+              currentKey={`${calendarView}:${selectedDate}`}
+              onTurn={navigateRange}
+              ref={pageTurnRef}
+              renderAdjacent={(amount) => {
+                if (!canNavigateCalendar(selectedDate, amount)) return null
+                return renderCalendarPage(
+                  getAdjacentDate(selectedDate, calendarView, amount),
+                  false,
+                )
+              }}
+            >
+              {renderCalendarPage(selectedDate)}
+            </PageTurn>
+          )}
+          {workspacePage === 'week-summary' && <WeekSummaryPage anchorDate={pageAnchor} />}
+          {workspacePage === 'favorites' && (
+            <FavoritesPage
+              copiedKey={copiedKey}
+              favorites={favorites}
+              onCopy={copyGuidance}
+              onRemove={(favorite) =>
+                setFavorites((current) =>
+                  current.filter(
+                    (item) => favoriteKey(item.date, item.guidanceId) !== favoriteKey(favorite.date, favorite.guidanceId),
+                  ),
+                )
+              }
+            />
+          )}
+          {workspacePage === 'fishing-wheel' && <FishingWheelPage />}
+          {workspacePage === 'statistics' && (
+            <PaperSheet>
+              <RuledSection className="pb-10 sm:pb-12">
+                <StatisticsPage
+                  anchorDate={pageAnchor}
+                  canNavigate={canNavigateStatistics}
+                  onNavigate={navigateStatistics}
+                  onRangeChange={setStatisticsRange}
+                  range={statisticsRange}
+                />
+              </RuledSection>
+            </PaperSheet>
+          )}
+        </div>
       </div>
       {!isTodayContext && isDateInPeriod(today, period) && <TodayFab onToday={goToday} />}
     </AppShell>
