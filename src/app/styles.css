@@ -23,6 +23,7 @@
 
 :root {
   color-scheme: light;
+  --paper-rule-color: rgb(146 153 144 / 27%);
   color: var(--color-ink);
   background: var(--color-workbench);
   font-family: var(--font-sans);
@@ -45,6 +46,7 @@
   --color-jade: #81b5a3;
   --color-jade-soft: #294139;
   --shadow-paper: 0 18px 55px rgb(0 0 0 / 28%);
+  --paper-rule-color: rgb(103 106 98 / 32%);
 }
 
 * {
@@ -95,26 +97,6 @@ button,
   touch-action: pan-y;
 }
 
-.page-turn-sheet {
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  will-change: transform, filter;
-}
-
-.page-turn-fold {
-  background: linear-gradient(
-    to right,
-    transparent,
-    color-mix(in srgb, var(--color-paper) 68%, transparent),
-    color-mix(in srgb, var(--color-ink) 20%, transparent)
-  );
-}
-
-.page-turn-edge {
-  background: var(--color-paper);
-  box-shadow: 0 0 18px 5px color-mix(in srgb, var(--color-ink) 18%, transparent);
-}
-
 :focus-visible {
   outline: 2px solid var(--color-cinnabar);
   outline-offset: 3px;
@@ -125,8 +107,8 @@ button,
     to bottom,
     transparent 0,
     transparent 31px,
-    color-mix(in srgb, var(--color-line-strong) 27%, transparent) 31px,
-    color-mix(in srgb, var(--color-line-strong) 27%, transparent) 32px
+    var(--paper-rule-color) 31px,
+    var(--paper-rule-color) 32px
   );
   background-position-y: 9px;
 }

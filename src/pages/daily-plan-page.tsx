@@ -1,6 +1,6 @@
 import { Quote } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { InlineNotice } from '@/components/feedback/inline-notice'
 import { AppShell } from '@/components/layout/app-shell'
@@ -29,6 +29,7 @@ import {
   addISOMonth,
   addISOWeek,
   addISOYear,
+  getCalendarMonthDates,
   getDayKind,
   getTodayISO,
   getWeekDates,
@@ -143,6 +144,7 @@ export function DailyPlanPage() {
   const selectedDate = usePlanStore((state) => state.selectedDate)
   const calendarView = usePlanStore((state) => state.calendarView)
   const hydrationState = usePlanStore((state) => state.hydrationState)
+  const records = usePlanStore((state) => state.records)
   const setCalendarView = usePlanStore((state) => state.setCalendarView)
   const setCalendarCursor = usePlanStore((state) => state.setCalendarCursor)
   const setSelectedDate = usePlanStore((state) => state.setSelectedDate)
@@ -155,6 +157,8 @@ export function DailyPlanPage() {
   const workspaceRef = useRef<HTMLDivElement>(null)
   const today = getTodayISO()
   const contextDate = workspacePage === 'calendar' ? selectedDate : pageAnchor
+  const isCanonicalTodayDay =
+    workspacePage === 'calendar' && calendarView === 'day' && selectedDate === today
 
   useCalendarZoom(
     workspaceRef,
@@ -174,28 +178,20 @@ export function DailyPlanPage() {
   }
 
   const openDestination = (destination: ToolbarDestination) => {
-    saveReturnSnapshot()
-    setPageAnchor(contextDate)
-    if (destination === 'week' || destination === 'month') {
+    if (destination === 'day' || destination === 'week' || destination === 'month') {
+      if (workspacePage !== 'calendar') saveReturnSnapshot()
       setCalendarCursor(contextDate, destination)
       setWorkspacePage('calendar')
       return
     }
+    saveReturnSnapshot()
+    setPageAnchor(contextDate)
     if (destination === 'statistics') {
       setStatisticsRange('week')
       setWorkspacePage('statistics')
       return
     }
     setWorkspacePage('week-summary')
-  }
-
-  const changeViewFromHeader = (view: CalendarView) => {
-    if (workspacePage === 'calendar') {
-      setCalendarView(view)
-      return
-    }
-    setCalendarCursor(contextDate, view)
-    setWorkspacePage('calendar')
   }
 
   const goBack = () => {
@@ -238,6 +234,14 @@ export function DailyPlanPage() {
     else setPageAnchor(today)
   }
 
+  useEffect(() => {
+    if (
+      isCanonicalTodayDay && returnSnapshot
+    ) {
+      setReturnSnapshot(null)
+    }
+  }, [isCanonicalTodayDay, returnSnapshot])
+
   const renderCalendarPage = (date: string, interactive: boolean) => (
     <CalendarPage
       date={date}
@@ -248,19 +252,35 @@ export function DailyPlanPage() {
     />
   )
 
+  const pageTextureKey = (date: string) => {
+    const visibleDates = calendarView === 'day'
+      ? [date]
+      : calendarView === 'week'
+        ? getWeekDates(date)
+        : getCalendarMonthDates(date)
+    const contentRevision = visibleDates.map((visibleDate) => [
+      visibleDate,
+      records[visibleDate] ?? null,
+    ])
+    return `${calendarView}:${date}:${hydrationState}:${JSON.stringify(contentRevision)}`
+  }
+
   return (
     <AppShell>
       <StickyWorkspaceHeader
-        canGoBack={Boolean(returnSnapshot)}
+        canGoBack={Boolean(returnSnapshot) && !isCanonicalTodayDay}
         onBack={goBack}
         onNavigate={openDestination}
         onOpenWeekSummary={openWeekSummary}
-        onViewChange={changeViewFromHeader}
-        view={calendarView}
       />
       <div ref={workspaceRef}>
         {workspacePage === 'calendar' && (
           <PageTurn
+            adjacentKeys={{
+              previous: pageTextureKey(getAdjacentDate(selectedDate, calendarView, -1)),
+              next: pageTextureKey(getAdjacentDate(selectedDate, calendarView, 1)),
+            }}
+            currentKey={pageTextureKey(selectedDate)}
             onTurn={navigateRange}
             ref={pageTurnRef}
             renderAdjacent={(amount) => renderCalendarPage(getAdjacentDate(selectedDate, calendarView, amount), false)}

@@ -1,11 +1,11 @@
-import { ArrowLeft, BarChart3, CalendarRange, ChartNoAxesCombined, Menu, Rows3 } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, CalendarRange, ChartNoAxesCombined, Menu, Rows3 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { IconButton } from '@/components/ui/icon-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useTheme, type ThemePreference } from '@/features/theme'
 
-export type ToolbarDestination = 'week-summary' | 'week' | 'month' | 'statistics'
+export type ToolbarDestination = 'day' | 'week-summary' | 'week' | 'month' | 'statistics'
 
 interface WorkspaceToolbarProps {
   canGoBack: boolean
@@ -20,9 +20,10 @@ const themeOptions = [
 ] satisfies Array<{ label: string; value: ThemePreference }>
 
 const destinations = [
-  { value: 'week-summary', label: '本周总结', icon: Rows3 },
+  { value: 'day', label: '日视图', icon: CalendarDays },
   { value: 'week', label: '周视图', icon: CalendarRange },
   { value: 'month', label: '月视图', icon: BarChart3 },
+  { value: 'week-summary', label: '本周总结', icon: Rows3 },
   { value: 'statistics', label: '总统计', icon: ChartNoAxesCombined },
 ] satisfies Array<{ value: ToolbarDestination; label: string; icon: typeof Rows3 }>
 
@@ -54,16 +55,13 @@ export function WorkspaceToolbar({ canGoBack, onBack, onNavigate }: WorkspaceToo
     }
   }, [open])
 
-  if (canGoBack) {
-    return (
-      <IconButton label="返回" onClick={onBack} variant="ghost">
-        <ArrowLeft aria-hidden="true" size={21} />
-      </IconButton>
-    )
-  }
-
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative flex items-center" ref={containerRef}>
+      {canGoBack && (
+        <IconButton label="返回" onClick={onBack} variant="ghost">
+          <ArrowLeft aria-hidden="true" size={21} />
+        </IconButton>
+      )}
       <div ref={triggerRef}>
         <IconButton
           aria-expanded={open}

@@ -1,6 +1,7 @@
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react'
+import { animate, useMotionValue, useReducedMotion } from 'motion/react'
 import {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -8,8 +9,9 @@ import {
   type ReactNode,
 } from 'react'
 
+import { BookPageRenderer } from '@/features/calendar/book-page-renderer'
+import { PageTextureCache } from '@/features/calendar/page-texture-cache'
 import { canStartDateSwipe, getDateSwipeAmount } from '@/features/plans/gestures'
-import { getPageTurnVisual } from '@/features/calendar/page-turn-motion'
 import { cn } from '@/lib/cn'
 
 export interface PageTurnHandle {
@@ -18,8 +20,10 @@ export interface PageTurnHandle {
 }
 
 interface PageTurnProps {
+  adjacentKeys: { previous: string; next: string }
   children: ReactNode
   className?: string
+  currentKey: string
   onTurn: (amount: -1 | 1) => void
   renderAdjacent: (amount: -1 | 1) => ReactNode
 }
@@ -34,41 +38,256 @@ interface PointerSession {
   active: boolean
 }
 
+function pageElement(wrapper: HTMLDivElement | null) {
+  return wrapper?.firstElementChild instanceof HTMLElement
+    ? wrapper.firstElementChild
+    : wrapper
+}
+
 export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageTurn(
-  { children, className, onTurn, renderAdjacent },
+  {
+    adjacentKeys,
+    children,
+    className,
+    currentKey,
+    onTurn,
+    renderAdjacent,
+  },
   ref,
 ) {
   const reduceMotion = useReducedMotion()
+  const textureCacheRef = useRef<PageTextureCache | null>(null)
+  if (!textureCacheRef.current) textureCacheRef.current = new PageTextureCache()
+  const textureCache = textureCacheRef.current
   const progress = useMotionValue(0)
-  const foldY = useMotionValue(0.6)
+  const pointerY = useMotionValue(0.6)
+  const foldCornerY = useRef<0 | 1>(1)
   const directionRef = useRef<-1 | 1>(1)
-  const currentX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).currentXPercent}%`)
-  const currentRotateY = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).currentRotateY)
-  const targetX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).targetXPercent}%`)
-  const targetOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).targetOpacity)
-  const edgeOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).edgeIntensity * 0.32)
-  const foldTop = useTransform([progress, foldY], ([turnProgress, pointerY]) =>
-    `${getPageTurnVisual(Number(turnProgress), directionRef.current, Number(pointerY)).foldCenterPercent}%`,
-  )
-  const foldAngle = useTransform([progress, foldY], ([turnProgress, pointerY]) =>
-    getPageTurnVisual(Number(turnProgress), directionRef.current, Number(pointerY)).foldAngle,
-  )
   const [direction, setDirection] = useState<-1 | 1 | null>(null)
   const [busy, setBusy] = useState(false)
+  const [canvasReady, setCanvasReady] = useState(false)
+  const canvasReadyRef = useRef(false)
+  const fallbackRef = useRef(false)
   const session = useRef<PointerSession | null>(null)
   const surface = useRef<HTMLDivElement>(null)
+  const currentPage = useRef<HTMLDivElement>(null)
+  const targetPage = useRef<HTMLDivElement>(null)
+  const previousPrefetch = useRef<HTMLDivElement>(null)
+  const nextPrefetch = useRef<HTMLDivElement>(null)
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const renderer = useRef<BookPageRenderer | null>(null)
+  const preparation = useRef<Promise<void> | null>(null)
+  const preparationGeneration = useRef(0)
   const animationToken = useRef(0)
 
+  const textureKey = (key: string, element: HTMLElement) => {
+    const bounds = element.getBoundingClientRect()
+    const theme = document.documentElement.dataset.theme ?? 'light'
+    return `${key}:${theme}:${Math.round(bounds.width)}x${Math.round(bounds.height)}:${window.devicePixelRatio || 1}`
+  }
+
+  const activateFallback = () => {
+    const activeRenderer = renderer.current
+    renderer.current = null
+    activeRenderer?.dispose()
+    if (canvas.current) canvas.current.style.display = 'none'
+    if (currentPage.current) {
+      currentPage.current.style.opacity = '1'
+      currentPage.current.style.transform = ''
+    }
+    if (targetPage.current) {
+      targetPage.current.style.opacity = ''
+      targetPage.current.style.transform = ''
+      targetPage.current.style.zIndex = ''
+    }
+    canvasReadyRef.current = false
+    fallbackRef.current = true
+    setCanvasReady(false)
+  }
+
+  const draw = () => {
+    const value = progress.get()
+    const turnDirection = directionRef.current
+    if (renderer.current && canvasReadyRef.current) {
+      try {
+        renderer.current.render(
+          value,
+          turnDirection === -1,
+          pointerY.get(),
+          foldCornerY.current,
+        )
+      } catch {
+        activateFallback()
+        draw()
+      }
+      return
+    }
+    if (!fallbackRef.current) return
+
+    const current = currentPage.current
+    const target = targetPage.current
+    if (turnDirection === 1 && current) {
+      current.style.transform = `translate3d(${-value * 100}%, 0, 0)`
+    }
+    if (turnDirection === -1 && target) {
+      target.style.opacity = '1'
+      target.style.transform = `translate3d(${(value - 1) * 100}%, 0, 0)`
+      target.style.zIndex = '30'
+    }
+  }
+
+  useEffect(() => {
+    const unsubscribeProgress = progress.on('change', draw)
+    const unsubscribePointer = pointerY.on('change', draw)
+    return () => {
+      unsubscribeProgress()
+      unsubscribePointer()
+    }
+  }, [pointerY, progress])
+
+  useEffect(() => {
+    if (reduceMotion) return
+    const candidates = [
+      { baseKey: currentKey, element: pageElement(currentPage.current) },
+      { baseKey: adjacentKeys.previous, element: pageElement(previousPrefetch.current) },
+      { baseKey: adjacentKeys.next, element: pageElement(nextPrefetch.current) },
+    ].filter(
+      (candidate): candidate is { baseKey: string; element: HTMLElement } =>
+        Boolean(candidate.element),
+    )
+    if (!candidates.length) return
+    const capture = () => {
+      const keys = candidates.map(({ baseKey, element }) => textureKey(baseKey, element))
+      textureCache.retain(keys)
+      for (const [index, candidate] of candidates.entries()) {
+        void textureCache.capture(keys[index], candidate.element).catch(() => undefined)
+      }
+    }
+    let idleHandle: number | null = null
+    const delayHandle = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === 'function') {
+        idleHandle = window.requestIdleCallback(capture)
+        return
+      }
+      capture()
+    }, 180)
+    return () => {
+      window.clearTimeout(delayHandle)
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle)
+    }
+  }, [adjacentKeys.next, adjacentKeys.previous, currentKey, reduceMotion])
+
+  useEffect(() => () => {
+    preparationGeneration.current += 1
+    animationToken.current += 1
+    renderer.current?.dispose()
+    renderer.current = null
+    textureCache.clear()
+  }, [])
+
+  const resetVisuals = () => {
+    renderer.current?.dispose()
+    renderer.current = null
+    if (canvas.current) {
+      const gl = canvas.current.getContext('webgl')
+      gl?.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+      canvas.current.style.display = 'none'
+    }
+    if (currentPage.current) {
+      currentPage.current.style.opacity = '1'
+      currentPage.current.style.transform = ''
+    }
+    if (targetPage.current) {
+      targetPage.current.style.opacity = ''
+      targetPage.current.style.transform = ''
+      targetPage.current.style.zIndex = ''
+    }
+    setCanvasReady(false)
+    canvasReadyRef.current = false
+    fallbackRef.current = false
+  }
+
   const reset = () => {
+    preparationGeneration.current += 1
     progress.set(0)
+    pointerY.set(0.6)
+    foldCornerY.current = 1
+    resetVisuals()
     setDirection(null)
     setBusy(false)
     session.current = null
+    preparation.current = null
   }
 
-  const finishTurn = (amount: -1 | 1, preserveFold = false) => {
+  const prepareRenderer = (amount: -1 | 1) => {
+    if (reduceMotion) return Promise.resolve()
+    if (preparation.current) return preparation.current
+
+    const generation = ++preparationGeneration.current
+    preparation.current = new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        const sourceWrapper = amount === 1 ? currentPage.current : targetPage.current
+        const source = pageElement(sourceWrapper)
+        const canvasElement = canvas.current
+        const bounds = pageElement(currentPage.current)?.getBoundingClientRect()
+        if (!source || !canvasElement || !bounds) {
+          fallbackRef.current = true
+          resolve()
+          return
+        }
+
+        const baseKey = amount === 1 ? currentKey : adjacentKeys.previous
+        const key = textureKey(baseKey, source)
+        void textureCache.capture(key, source).then((captured) => {
+          if (generation !== preparationGeneration.current) {
+            resolve()
+            return
+          }
+          try {
+            const previousRenderer = renderer.current
+            renderer.current = null
+            previousRenderer?.dispose()
+            const nextRenderer = new BookPageRenderer(canvasElement, {
+              onContextLost: () => {
+                if (renderer.current !== nextRenderer) return
+                activateFallback()
+                draw()
+              },
+            })
+            nextRenderer.resize(bounds.width, bounds.height)
+            nextRenderer.setTexture(captured)
+            renderer.current = nextRenderer
+            nextRenderer.render(
+              progress.get(),
+              amount === -1,
+              pointerY.get(),
+              foldCornerY.current,
+            )
+            canvasReadyRef.current = true
+            canvasElement.style.display = 'block'
+            setCanvasReady(true)
+            if (amount === 1 && currentPage.current) currentPage.current.style.opacity = '0'
+          } catch {
+            activateFallback()
+            draw()
+          }
+          resolve()
+        }).catch(() => {
+          activateFallback()
+          draw()
+          resolve()
+        })
+      })
+    })
+    return preparation.current
+  }
+
+  const finishTurn = (amount: -1 | 1, preservePointer = false) => {
     if (busy) return
-    if (!preserveFold) foldY.set(0.6)
+    if (!preservePointer) {
+      pointerY.set(0.6)
+      foldCornerY.current = 1
+    }
     setBusy(true)
     directionRef.current = amount
     setDirection(amount)
@@ -80,15 +299,18 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     }
 
     const token = ++animationToken.current
-    void animate(progress, 1, {
-      type: 'spring',
-      stiffness: 175,
-      damping: 23,
-      mass: 0.82,
-    }).then(() => {
+    void prepareRenderer(amount).then(() => {
       if (token !== animationToken.current) return
-      onTurn(amount)
-      reset()
+      void animate(progress, 1, {
+        type: 'spring',
+        stiffness: 150,
+        damping: 22,
+        mass: 0.9,
+      }).then(() => {
+        if (token !== animationToken.current) return
+        onTurn(amount)
+        reset()
+      })
     })
   }
 
@@ -100,7 +322,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       return
     }
     setBusy(true)
-    void animate(progress, 0, { type: 'spring', stiffness: 265, damping: 29 }).then(() => {
+    void animate(progress, 0, { type: 'spring', stiffness: 235, damping: 28 }).then(() => {
       if (token === animationToken.current) reset()
     })
   }
@@ -109,15 +331,18 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (busy || !canStartDateSwipe(event.target)) return
-
     if (session.current) {
       cancel()
       return
     }
 
-    event.currentTarget.setPointerCapture(event.pointerId)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
     const bounds = event.currentTarget.getBoundingClientRect()
-    foldY.set(bounds.height ? (event.clientY - bounds.top) / bounds.height : 0.6)
+    const initialPointerY = bounds.height
+      ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height))
+      : 0.6
+    pointerY.set(initialPointerY)
+    foldCornerY.current = initialPointerY < 0.5 ? 0 : 1
     session.current = {
       id: event.pointerId,
       startX: event.clientX,
@@ -145,24 +370,23 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       const nextDirection = offsetX < 0 ? 1 : -1
       directionRef.current = nextDirection
       setDirection(nextDirection)
+      void prepareRenderer(nextDirection)
     }
 
     event.preventDefault()
     const bounds = event.currentTarget.getBoundingClientRect()
-    foldY.set(bounds.height ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) : 0.6)
+    pointerY.set(bounds.height ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) : 0.6)
     const elapsed = Math.max(1, event.timeStamp - current.lastTime)
     current.velocityX = ((event.clientX - current.lastX) / elapsed) * 1000
     current.lastX = event.clientX
     current.lastTime = event.timeStamp
-    const width = Math.max(1, surface.current?.clientWidth ?? window.innerWidth)
-    progress.set(Math.min(1, Math.abs(offsetX) / width))
+    progress.set(Math.min(1, Math.abs(offsetX) / Math.max(1, bounds.width)))
   }
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
     const current = session.current
     if (!current || current.id !== event.pointerId) return
-    const offsetX = event.clientX - current.startX
-    const amount = getDateSwipeAmount(offsetX, current.velocityX)
+    const amount = getDateSwipeAmount(event.clientX - current.startX, current.velocityX)
     session.current = null
     if (amount) finishTurn(amount, true)
     else cancel()
@@ -178,50 +402,28 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       ref={surface}
     >
       {direction && (
-        <motion.div
+        <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none"
           inert
-          style={{ opacity: targetOpacity, x: targetX }}
+          ref={targetPage}
         >
           {renderAdjacent(direction)}
-        </motion.div>
+        </div>
       )}
-      <motion.div
-        className="page-turn-sheet relative z-10"
-        style={{
-          rotateY: currentRotateY,
-          transformOrigin: direction === -1 ? 'right center' : 'left center',
-          x: currentX,
-        }}
-      >
-        <div>{children}</div>
-        <motion.div
-          aria-hidden="true"
-          className={cn(
-            'page-turn-fold pointer-events-none absolute z-20 h-44 w-24 -translate-y-1/2',
-          )}
-          style={{
-            left: direction === -1 ? 0 : 'auto',
-            opacity: edgeOpacity,
-            right: direction === 1 ? 0 : 'auto',
-            rotateZ: foldAngle,
-            scaleX: direction === -1 ? -1 : 1,
-            top: foldTop,
-          }}
-        />
-        <motion.div
-          aria-hidden="true"
-          className="page-turn-edge pointer-events-none absolute z-30 h-44 w-px -translate-y-1/2"
-          style={{
-            left: direction === -1 ? 0 : 'auto',
-            opacity: edgeOpacity,
-            right: direction === 1 ? 0 : 'auto',
-            rotateZ: foldAngle,
-            top: foldTop,
-          }}
-        />
-      </motion.div>
+      <div className="relative z-10" ref={currentPage}>{children}</div>
+      <canvas
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 z-20"
+        ref={canvas}
+        style={{ display: canvasReady ? 'block' : 'none' }}
+      />
+      {!direction && (
+        <div aria-hidden="true" className="pointer-events-none absolute left-[-220vw] top-0 w-full" inert>
+          <div ref={previousPrefetch}>{renderAdjacent(-1)}</div>
+          <div ref={nextPrefetch}>{renderAdjacent(1)}</div>
+        </div>
+      )}
     </div>
   )
 })
