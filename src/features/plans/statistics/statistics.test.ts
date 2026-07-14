@@ -1,5 +1,9 @@
 import type { PlanRecords } from '@/features/plans/model'
-import { calculateWeekSummary, countCharacters } from '@/features/plans/statistics'
+import {
+  calculateStatisticsSummary,
+  calculateWeekSummary,
+  countCharacters,
+} from '@/features/plans/statistics'
 
 describe('week statistics', () => {
   it('counts non-whitespace characters and keeps punctuation', () => {
@@ -50,7 +54,7 @@ describe('week statistics', () => {
 
   it('does not mark unresolved future weekdays as missed when previewing Sunday', () => {
     expect(calculateWeekSummary('2026-07-19', {}, '2026-07-14')).toMatchObject({
-      totalPlans: 35,
+      totalPlans: 14,
       completedPlans: 0,
       missedPlans: 7,
       missedBySubject: {
@@ -62,5 +66,34 @@ describe('week statistics', () => {
         物理: 2,
       },
     })
+  })
+
+  it('supports month, year, and all ranges while cutting off future dates', () => {
+    const records: PlanRecords = {
+      '2026-07-13': {
+        kind: 'weekday',
+        date: '2026-07-13',
+        inputs: {},
+        resolutions: { 'weekday-1': 'completed' },
+        journal: '',
+      },
+      '2026-07-20': {
+        kind: 'weekday',
+        date: '2026-07-20',
+        inputs: { 'weekday-6': '未来计划' },
+        resolutions: {},
+        journal: '',
+      },
+    }
+
+    const month = calculateStatisticsSummary('month', '2026-07-14', records, '2026-07-14')
+    expect(month.endDate).toBe('2026-07-14')
+    expect(month.completedPlans).toBe(1)
+    expect(month.totalPlans).toBe(70)
+
+    const all = calculateStatisticsSummary('all', '2026-07-14', records, '2026-07-14')
+    expect(all.startDate).toBe('2026-07-13')
+    expect(all.endDate).toBe('2026-07-14')
+    expect(all.completionRate).toBe(14)
   })
 })

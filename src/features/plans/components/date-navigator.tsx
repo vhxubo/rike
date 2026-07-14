@@ -6,8 +6,8 @@ import type { CalendarView } from '@/features/calendar'
 import {
   formatCompactDate,
   formatDisplayDate,
+  formatMonthTitle,
   formatWeekday,
-  formatYear,
   getTodayISO,
   getWeekDates,
 } from '@/features/plans/date'
@@ -16,25 +16,33 @@ interface DateNavigatorProps {
   date: string
   onNext: () => void
   onPrevious: () => void
+  onToday?: () => void
   view?: CalendarView
 }
 
 const labels: Record<CalendarView, { previous: string; next: string }> = {
   day: { previous: '前一天', next: '后一天' },
   week: { previous: '上一周', next: '下一周' },
-  year: { previous: '上一年', next: '下一年' },
+  month: { previous: '上个月', next: '下个月' },
 }
 
-export function DateNavigator({ date, onNext, onPrevious, view = 'day' }: DateNavigatorProps) {
-  const isToday = date === getTodayISO()
+export function DateNavigator({ date, onNext, onPrevious, onToday, view = 'day' }: DateNavigatorProps) {
+  const today = getTodayISO()
+  const isToday = date === today
   const weekDates = getWeekDates(date)
+  const isCurrentContext =
+    view === 'day'
+      ? isToday
+      : view === 'week'
+        ? weekDates.includes(today)
+        : date.slice(0, 7) === today.slice(0, 7)
   const compactLabel =
     view === 'day'
       ? formatCompactDate(date)
       : view === 'week'
         ? `${weekDates[0]} — ${weekDates[6]}`
-        : formatYear(date)
-  const title = view === 'day' ? formatWeekday(date) : view === 'week' ? '本周计划' : '年度计划'
+        : formatMonthTitle(date)
+  const title = view === 'day' ? formatWeekday(date) : view === 'week' ? '本周计划' : '月度计划'
 
   return (
     <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-3" aria-live="polite">
@@ -48,6 +56,11 @@ export function DateNavigator({ date, onNext, onPrevious, view = 'day' }: DateNa
           {isToday && <Badge tone="accent">今天</Badge>}
         </div>
         <p className="mt-1 font-display text-2xl font-semibold text-ink">{title}</p>
+        {!isCurrentContext && onToday && (
+          <button className="mt-2 border-b border-cinnabar font-data text-[11px] text-cinnabar" onClick={onToday} type="button">
+            回到今天
+          </button>
+        )}
       </div>
 
       <IconButton label={labels[view].next} onClick={onNext} variant="ghost">

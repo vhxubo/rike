@@ -21,6 +21,7 @@ describe('plan store migration', () => {
 
   it('keeps valid views and rejects invalid values', () => {
     expect(migratePlanPersistedState({ calendarView: 'week' }).calendarView).toBe('week')
+    expect(migratePlanPersistedState({ calendarView: 'year' }).calendarView).toBe('month')
     expect(migratePlanPersistedState({ calendarView: 'decade' }).calendarView).toBe('day')
   })
 })

@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 import { canStartDateSwipe, getDateSwipeAmount } from '@/features/plans/gestures'
+import { getPageTurnVisual } from '@/features/calendar/page-turn-motion'
 import { cn } from '@/lib/cn'
 
 export interface PageTurnHandle {
@@ -38,8 +39,13 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   ref,
 ) {
   const reduceMotion = useReducedMotion()
-  const rotation = useMotionValue(0)
-  const shadowOpacity = useTransform(rotation, (value) => Math.sin((Math.abs(value) / 180) * Math.PI) * 0.34)
+  const progress = useMotionValue(0)
+  const directionRef = useRef<-1 | 1>(1)
+  const currentX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).currentXPercent}%`)
+  const currentRotateY = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).currentRotateY)
+  const targetX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).targetXPercent}%`)
+  const targetOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).targetOpacity)
+  const edgeOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).edgeIntensity * 0.32)
   const [direction, setDirection] = useState<-1 | 1 | null>(null)
   const [busy, setBusy] = useState(false)
   const session = useRef<PointerSession | null>(null)
@@ -47,7 +53,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   const animationToken = useRef(0)
 
   const reset = () => {
-    rotation.set(0)
+    progress.set(0)
     setDirection(null)
     setBusy(false)
     session.current = null
@@ -56,6 +62,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   const finishTurn = (amount: -1 | 1) => {
     if (busy) return
     setBusy(true)
+    directionRef.current = amount
     setDirection(amount)
 
     if (reduceMotion) {
@@ -64,9 +71,13 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       return
     }
 
-    const target = amount > 0 ? -180 : 180
     const token = ++animationToken.current
-    void animate(rotation, target, { duration: 0.42, ease: [0.22, 0.72, 0.2, 1] }).then(() => {
+    void animate(progress, 1, {
+      type: 'spring',
+      stiffness: 175,
+      damping: 23,
+      mass: 0.82,
+    }).then(() => {
       if (token !== animationToken.current) return
       onTurn(amount)
       reset()
@@ -76,12 +87,12 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   const cancel = () => {
     const token = ++animationToken.current
     session.current = null
-    if (reduceMotion || rotation.get() === 0) {
+    if (reduceMotion || progress.get() === 0) {
       reset()
       return
     }
     setBusy(true)
-    void animate(rotation, 0, { type: 'spring', stiffness: 360, damping: 34 }).then(() => {
+    void animate(progress, 0, { type: 'spring', stiffness: 265, damping: 29 }).then(() => {
       if (token === animationToken.current) reset()
     })
   }
@@ -121,7 +132,9 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
         return
       }
       current.active = true
-      setDirection(offsetX < 0 ? 1 : -1)
+      const nextDirection = offsetX < 0 ? 1 : -1
+      directionRef.current = nextDirection
+      setDirection(nextDirection)
     }
 
     event.preventDefault()
@@ -130,8 +143,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     current.lastX = event.clientX
     current.lastTime = event.timeStamp
     const width = Math.max(1, surface.current?.clientWidth ?? window.innerWidth)
-    const progress = Math.min(1, Math.abs(offsetX) / width)
-    rotation.set(offsetX < 0 ? -progress * 180 : progress * 180)
+    progress.set(Math.min(1, Math.abs(offsetX) / width))
   }
 
   const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
@@ -146,7 +158,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
 
   return (
     <div
-      className={cn('page-turn-surface relative', className)}
+      className={cn('page-turn-surface relative overflow-hidden', className)}
       onPointerCancel={cancel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -154,30 +166,43 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       ref={surface}
     >
       {direction && (
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none" inert>
+        <motion.div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          inert
+          style={{ opacity: targetOpacity, x: targetX }}
+        >
           {renderAdjacent(direction)}
-        </div>
+        </motion.div>
       )}
       <motion.div
         className="page-turn-sheet relative z-10"
         style={{
-          rotateY: rotation,
+          rotateY: currentRotateY,
           transformOrigin: direction === -1 ? 'right center' : 'left center',
+          x: currentX,
         }}
       >
-        <div className="[backface-visibility:hidden]">{children}</div>
-        <div
+        <div>{children}</div>
+        <motion.div
           aria-hidden="true"
-          className="absolute inset-0 bg-paper paper-rules [backface-visibility:hidden] [transform:rotateY(180deg)]"
+          className={cn(
+            'page-turn-fold pointer-events-none absolute inset-y-0 z-20 w-20',
+          )}
+          style={{
+            left: direction === -1 ? 0 : 'auto',
+            opacity: edgeOpacity,
+            right: direction === 1 ? 0 : 'auto',
+            scaleX: direction === -1 ? -1 : 1,
+          }}
         />
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 z-20 w-16 bg-gradient-to-r from-black/25 to-transparent"
+          className="page-turn-edge pointer-events-none absolute inset-y-0 z-30 w-px"
           style={{
-            left: direction === 1 ? 0 : 'auto',
-            opacity: shadowOpacity,
-            right: direction === -1 ? 0 : 'auto',
-            scaleX: direction === -1 ? -1 : 1,
+            left: direction === -1 ? 0 : 'auto',
+            opacity: edgeOpacity,
+            right: direction === 1 ? 0 : 'auto',
           }}
         />
       </motion.div>

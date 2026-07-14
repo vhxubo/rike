@@ -4,7 +4,7 @@ import type { CalendarView } from '@/features/calendar'
 const options = [
   { label: '日', value: 'day' },
   { label: '周', value: 'week' },
-  { label: '年', value: 'year' },
+  { label: '月', value: 'month' },
 ] satisfies Array<{ label: string; value: CalendarView }>
 
 interface ViewSwitcherProps {

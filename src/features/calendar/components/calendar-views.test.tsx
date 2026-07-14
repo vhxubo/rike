@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { WeekView, YearView } from '@/features/calendar/components'
+import { MonthView, WeekView } from '@/features/calendar/components'
 import { usePlanStore } from '@/features/plans/store'
 
 describe('calendar summary views', () => {
@@ -33,16 +33,16 @@ describe('calendar summary views', () => {
     })
   })
 
-  it('renders twelve months and opens a year date in day view', async () => {
+  it('renders six calendar weeks and opens an adjacent month date in day view', async () => {
     const user = userEvent.setup()
-    usePlanStore.setState({ calendarView: 'year' })
-    render(<YearView date="2026-07-14" />)
+    usePlanStore.setState({ calendarView: 'month' })
+    render(<MonthView date="2026-07-14" />)
 
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(12)
-    await user.click(screen.getByRole('button', { name: /^2026-12-20/ }))
+    expect(screen.getAllByRole('button')).toHaveLength(42)
+    await user.click(screen.getByRole('button', { name: /^2026-08-01/ }))
 
     expect(usePlanStore.getState()).toMatchObject({
-      selectedDate: '2026-12-20',
+      selectedDate: '2026-08-01',
       calendarView: 'day',
     })
   })

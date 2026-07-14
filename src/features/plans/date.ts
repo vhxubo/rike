@@ -1,8 +1,10 @@
 import {
   addDays,
+  addMonths,
   addYears,
   compareAsc,
   eachDayOfInterval,
+  endOfMonth,
   endOfWeek,
   endOfYear,
   format,
@@ -34,6 +36,10 @@ export function addISODate(date: string, amount: number) {
 
 export function addISOWeek(date: string, amount: number) {
   return addISODate(date, amount * 7)
+}
+
+export function addISOMonth(date: string, amount: number) {
+  return toISODate(addMonths(parseISODate(date), amount))
 }
 
 export function addISOYear(date: string, amount: number) {
@@ -68,20 +74,17 @@ export function getYearDates(date: string) {
   }).map(toISODate)
 }
 
-export function getMonthGridDates(date: string): Array<string | null> {
-  const firstDate = startOfMonth(parseISODate(date))
-  const firstWeekday = (getDay(firstDate) + 6) % 7
-  const monthDates = eachDayOfInterval({
-    start: firstDate,
-    end: new Date(firstDate.getFullYear(), firstDate.getMonth() + 1, 0),
+export function getMonthDates(date: string) {
+  const parsedDate = parseISODate(date)
+  return eachDayOfInterval({
+    start: startOfMonth(parsedDate),
+    end: endOfMonth(parsedDate),
   }).map(toISODate)
-  const cells: Array<string | null> = [
-    ...Array.from<null>({ length: firstWeekday }).fill(null),
-    ...monthDates,
-  ]
+}
 
-  while (cells.length % 7 !== 0) cells.push(null)
-  return cells
+export function getCalendarMonthDates(date: string) {
+  const start = startOfWeek(startOfMonth(parseISODate(date)), { weekStartsOn: 1 })
+  return Array.from({ length: 42 }, (_, index) => toISODate(addDays(start, index)))
 }
 
 export function formatDisplayDate(date: string) {
@@ -98,6 +101,10 @@ export function formatWeekday(date: string) {
 
 export function formatMonth(date: string) {
   return format(parseISODate(date), 'M月', { locale: zhCN })
+}
+
+export function formatMonthTitle(date: string) {
+  return format(parseISODate(date), 'yyyy年M月', { locale: zhCN })
 }
 
 export function formatYear(date: string) {

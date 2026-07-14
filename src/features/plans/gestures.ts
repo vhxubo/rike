@@ -11,7 +11,7 @@ export function canStartDateSwipe(target: EventTarget | null) {
   return !target.closest('input, textarea, button, a, [role="button"], [data-no-date-swipe]')
 }
 
-const viewOrder: CalendarView[] = ['day', 'week', 'year']
+const viewOrder: CalendarView[] = ['day', 'week', 'month']
 
 export function getZoomedView(
   view: CalendarView,

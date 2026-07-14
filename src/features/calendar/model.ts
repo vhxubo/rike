@@ -1,6 +1,6 @@
 import type { ISODateString } from '@/types/plans'
 
-export type CalendarView = 'day' | 'week' | 'year'
+export type CalendarView = 'day' | 'week' | 'month'
 
 export interface CalendarCursor {
   date: ISODateString
@@ -10,4 +10,3 @@ export interface CalendarCursor {
 export type CalendarGesture =
   | { type: 'navigate'; direction: 'previous' | 'next' }
   | { type: 'zoom'; direction: 'in' | 'out' }
-

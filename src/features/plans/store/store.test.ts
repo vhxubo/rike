@@ -85,13 +85,13 @@ describe('plan store', () => {
     usePlanStore.getState().navigateRange(1)
     expect(usePlanStore.getState().selectedDate).toBe('2026-07-21')
 
-    usePlanStore.getState().setCalendarView('year')
+    usePlanStore.getState().setCalendarView('month')
     usePlanStore.getState().navigateRange(-1)
-    expect(usePlanStore.getState().selectedDate).toBe('2025-07-21')
+    expect(usePlanStore.getState().selectedDate).toBe('2026-06-21')
   })
 
   it('opens a calendar date atomically in day view', () => {
-    usePlanStore.setState({ calendarView: 'year' })
+    usePlanStore.setState({ calendarView: 'month' })
     usePlanStore.getState().openDateInDayView('2026-12-20')
 
     expect(usePlanStore.getState()).toMatchObject({

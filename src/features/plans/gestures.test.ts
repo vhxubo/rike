@@ -30,9 +30,9 @@ describe('date swipe intent', () => {
 describe('calendar zoom intent', () => {
   it('moves one view level without wrapping', () => {
     expect(getZoomedView('day', 'out')).toBe('week')
-    expect(getZoomedView('week', 'out')).toBe('year')
-    expect(getZoomedView('year', 'out')).toBe('year')
-    expect(getZoomedView('year', 'in')).toBe('week')
+    expect(getZoomedView('week', 'out')).toBe('month')
+    expect(getZoomedView('month', 'out')).toBe('month')
+    expect(getZoomedView('month', 'in')).toBe('week')
     expect(getZoomedView('day', 'in')).toBe('day')
   })
 

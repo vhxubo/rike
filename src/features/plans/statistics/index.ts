@@ -1,4 +1,11 @@
-import { getDayKind, getTodayISO, getWeekDates } from '@/features/plans/date'
+import {
+  compareISODates,
+  getDayKind,
+  getMonthDates,
+  getTodayISO,
+  getWeekDates,
+  getYearDates,
+} from '@/features/plans/date'
 import type {
   DayOverview,
   ItemResolution,
@@ -16,6 +23,14 @@ export interface WeekSummary {
   completedPlans: number
   missedPlans: number
   missedBySubject: Record<Subject, number>
+}
+
+export type StatisticsRange = 'week' | 'month' | 'year' | 'all'
+
+export interface StatisticsSummary extends WeekSummary {
+  completionRate: number
+  startDate: string
+  endDate: string
 }
 
 const subjects: Subject[] = ['语文', '英语', '数学', '化学', '生物', '物理']
@@ -37,16 +52,66 @@ export function calculateWeekSummary(
   records: PlanRecords,
   asOfDate = getTodayISO(),
 ): WeekSummary {
-  const summary: WeekSummary = {
+  const summary = calculateStatisticsSummary('week', weekDate, records, asOfDate)
+  return {
+    planCharacterCount: summary.planCharacterCount,
+    journalCharacterCount: summary.journalCharacterCount,
+    totalPlans: summary.totalPlans,
+    completedPlans: summary.completedPlans,
+    missedPlans: summary.missedPlans,
+    missedBySubject: summary.missedBySubject,
+  }
+}
+
+function getStatisticsDates(
+  range: StatisticsRange,
+  anchorDate: string,
+  records: PlanRecords,
+  asOfDate: string,
+) {
+  let dates: string[]
+
+  if (range === 'week') dates = getWeekDates(anchorDate)
+  else if (range === 'month') dates = getMonthDates(anchorDate)
+  else if (range === 'year') dates = getYearDates(anchorDate)
+  else {
+    const historicalRecordDates = Object.keys(records)
+      .filter((date) => compareISODates(date, asOfDate) <= 0)
+      .sort()
+    const startDate = historicalRecordDates[0] ?? asOfDate
+    const startYearDates = getYearDates(startDate)
+    const endYearDates = getYearDates(asOfDate)
+    dates = [...startYearDates]
+    for (let year = Number(startDate.slice(0, 4)) + 1; year <= Number(asOfDate.slice(0, 4)); year += 1) {
+      if (year === Number(asOfDate.slice(0, 4))) dates.push(...endYearDates)
+      else dates.push(...getYearDates(`${year}-01-01`))
+    }
+    dates = dates.filter((date) => compareISODates(date, startDate) >= 0)
+  }
+
+  return dates.filter((date) => compareISODates(date, asOfDate) <= 0)
+}
+
+export function calculateStatisticsSummary(
+  range: StatisticsRange,
+  anchorDate: string,
+  records: PlanRecords,
+  asOfDate = getTodayISO(),
+): StatisticsSummary {
+  const dates = getStatisticsDates(range, anchorDate, records, asOfDate)
+  const summary: StatisticsSummary = {
     planCharacterCount: 0,
     journalCharacterCount: 0,
     totalPlans: 0,
     completedPlans: 0,
     missedPlans: 0,
     missedBySubject: emptySubjectCounts(),
+    completionRate: 0,
+    startDate: dates[0] ?? asOfDate,
+    endDate: dates.at(-1) ?? asOfDate,
   }
 
-  for (const date of getWeekDates(weekDate).slice(0, 6)) {
+  for (const date of dates) {
     const kind = getDayKind(date)
     const record = records[date]
 
@@ -95,6 +160,11 @@ export function calculateWeekSummary(
       }
     }
   }
+
+  const resolvedPlans = summary.completedPlans + summary.missedPlans
+  summary.completionRate = resolvedPlans
+    ? Math.round((summary.completedPlans / resolvedPlans) * 100)
+    : 0
 
   return summary
 }

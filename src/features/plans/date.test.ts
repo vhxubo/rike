@@ -1,7 +1,8 @@
 import {
   addISOWeek,
   addISOYear,
-  getMonthGridDates,
+  addISOMonth,
+  getCalendarMonthDates,
   getWeekDates,
   getYearDates,
 } from '@/features/plans/date'
@@ -26,9 +27,11 @@ describe('plan date ranges', () => {
     expect(getYearDates('2025-07-14')).toHaveLength(365)
   })
 
-  it('builds month grids starting on Monday', () => {
-    const july = getMonthGridDates('2026-07-14')
-    expect(july.slice(0, 5)).toEqual([null, null, '2026-07-01', '2026-07-02', '2026-07-03'])
-    expect(july).toHaveLength(35)
+  it('builds a stable six-week calendar with adjacent dates', () => {
+    const dates = getCalendarMonthDates('2026-07-14')
+    expect(dates).toHaveLength(42)
+    expect(dates[0]).toBe('2026-06-29')
+    expect(dates[41]).toBe('2026-08-09')
+    expect(addISOMonth('2026-01-31', 1)).toBe('2026-02-28')
   })
 })

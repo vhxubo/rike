@@ -4,8 +4,8 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { CalendarView } from '@/features/calendar'
 import {
   addISODate,
+  addISOMonth,
   addISOWeek,
-  addISOYear,
   getDayKind,
   getTodayISO,
 } from '@/features/plans/date'
@@ -25,7 +25,7 @@ import {
 } from '@/features/plans/store/storage'
 import type { StoreHydrationState } from '@/stores'
 
-const PLAN_STORE_VERSION = 2
+const PLAN_STORE_VERSION = 3
 
 export interface PlanPersistedState {
   selectedDate: string
@@ -37,6 +37,7 @@ interface PlanStore extends PlanPersistedState {
   hydrationState: StoreHydrationState
   setSelectedDate: (date: string) => void
   setCalendarView: (view: CalendarView) => void
+  setCalendarCursor: (date: string, view: CalendarView) => void
   openDateInDayView: (date: string) => void
   navigateDate: (amount: number) => void
   navigateRange: (amount: number) => void
@@ -51,21 +52,32 @@ interface PlanStore extends PlanPersistedState {
 }
 
 function isCalendarView(value: unknown): value is CalendarView {
-  return value === 'day' || value === 'week' || value === 'year'
+  return value === 'day' || value === 'week' || value === 'month'
 }
 
 export function migratePlanPersistedState(persistedState: unknown): PlanPersistedState {
   const candidate =
     persistedState && typeof persistedState === 'object'
-      ? (persistedState as Partial<PlanPersistedState>)
+      ? (persistedState as {
+          selectedDate?: unknown
+          calendarView?: unknown
+          records?: unknown
+        })
       : {}
 
   return {
     selectedDate:
       typeof candidate.selectedDate === 'string' ? candidate.selectedDate : getTodayISO(),
-    calendarView: isCalendarView(candidate.calendarView) ? candidate.calendarView : 'day',
+    calendarView:
+      candidate.calendarView === 'year'
+        ? 'month'
+        : isCalendarView(candidate.calendarView)
+          ? candidate.calendarView
+          : 'day',
     records:
-      candidate.records && typeof candidate.records === 'object' ? candidate.records : {},
+      candidate.records && typeof candidate.records === 'object'
+        ? (candidate.records as PlanRecords)
+        : {},
   }
 }
 
@@ -120,6 +132,10 @@ export const usePlanStore = create<PlanStore>()(
         set({ calendarView })
       },
 
+      setCalendarCursor(selectedDate, calendarView) {
+        set({ selectedDate, calendarView })
+      },
+
       openDateInDayView(date) {
         set({ selectedDate: date, calendarView: 'day' })
       },
@@ -135,7 +151,7 @@ export const usePlanStore = create<PlanStore>()(
               ? addISODate(state.selectedDate, amount)
               : state.calendarView === 'week'
                 ? addISOWeek(state.selectedDate, amount)
-                : addISOYear(state.selectedDate, amount),
+                : addISOMonth(state.selectedDate, amount),
         }))
       },
 

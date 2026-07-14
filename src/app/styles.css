@@ -22,11 +22,29 @@
 }
 
 :root {
+  color-scheme: light;
   color: var(--color-ink);
   background: var(--color-workbench);
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-workbench: #171a18;
+  --color-paper: #272824;
+  --color-ink: #eee9dc;
+  --color-graphite: #aaa99f;
+  --color-line: #41433e;
+  --color-line-strong: #676a62;
+  --color-cinnabar: #d67b68;
+  --color-cinnabar-soft: #51352f;
+  --color-missed: #4b302c;
+  --color-warning: #d5a64a;
+  --color-jade: #81b5a3;
+  --color-jade-soft: #294139;
+  --shadow-paper: 0 18px 55px rgb(0 0 0 / 28%);
 }
 
 * {
@@ -83,6 +101,20 @@ button,
   will-change: transform, filter;
 }
 
+.page-turn-fold {
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--color-paper) 68%, transparent),
+    color-mix(in srgb, var(--color-ink) 20%, transparent)
+  );
+}
+
+.page-turn-edge {
+  background: var(--color-paper);
+  box-shadow: 0 0 18px 5px color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+
 :focus-visible {
   outline: 2px solid var(--color-cinnabar);
   outline-offset: 3px;
@@ -93,8 +125,8 @@ button,
     to bottom,
     transparent 0,
     transparent 31px,
-    rgb(146 153 144 / 27%) 31px,
-    rgb(146 153 144 / 27%) 32px
+    color-mix(in srgb, var(--color-line-strong) 27%, transparent) 31px,
+    color-mix(in srgb, var(--color-line-strong) 27%, transparent) 32px
   );
   background-position-y: 9px;
 }
