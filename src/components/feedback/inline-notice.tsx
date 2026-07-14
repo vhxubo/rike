@@ -31,7 +31,7 @@ export function InlineNotice({
 
   return (
     <div
-      className={cn('flex gap-3 rounded-sm border p-4', toneStyles[tone], className)}
+      className={cn('flex gap-3 border p-4', toneStyles[tone], className)}
       role="status"
       {...props}
     >

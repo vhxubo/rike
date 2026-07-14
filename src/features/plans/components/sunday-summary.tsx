@@ -59,7 +59,7 @@ export function SundaySummary({ date }: SundaySummaryProps) {
             return (
               <div className="grid grid-cols-[3rem_1fr_2rem] items-center gap-3" key={subject}>
                 <span className="text-sm text-ink">{subject}</span>
-                <span className="h-2 overflow-hidden rounded-sm bg-line/55">
+                <span className="h-2 overflow-hidden bg-line/55">
                   <span className="block h-full bg-cinnabar" style={{ width }} />
                 </span>
                 <span className="text-right font-data text-xs text-graphite">{value}</span>

@@ -7,7 +7,7 @@ export function PaperSheet({ className, children, ...props }: HTMLAttributes<HTM
   return (
     <main
       className={cn(
-        'relative min-h-dvh overflow-hidden bg-paper text-ink shadow-paper sm:min-h-0 sm:rounded-sm sm:border sm:border-line-strong',
+        'relative min-h-dvh overflow-hidden bg-paper text-ink shadow-paper sm:min-h-0 sm:border sm:border-line-strong',
         className,
       )}
       {...props}

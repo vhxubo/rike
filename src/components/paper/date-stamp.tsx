@@ -18,7 +18,7 @@ export function DateStamp({ date }: DateStampProps) {
 
   return (
     <div className="flex items-center gap-3" aria-label={fullDateFormatter.format(date)}>
-      <span className="grid size-11 place-items-center rounded-sm border border-cinnabar text-cinnabar">
+      <span className="grid size-11 place-items-center border border-cinnabar text-cinnabar">
         <CalendarDays aria-hidden="true" size={21} strokeWidth={1.6} />
       </span>
       <div>

@@ -16,7 +16,7 @@ export function BottomNav({ items }: BottomNavProps) {
   return (
     <nav
       aria-label="主要导航"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line-strong bg-paper/95 px-[max(0.75rem,env(safe-area-inset-left))] pb-[env(safe-area-inset-bottom)] backdrop-blur-sm sm:bottom-5 sm:left-1/2 sm:right-auto sm:w-[min(32rem,calc(100%-3rem))] sm:-translate-x-1/2 sm:rounded-md sm:border"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line-strong bg-paper/95 px-[max(0.75rem,env(safe-area-inset-left))] pb-[env(safe-area-inset-bottom)] backdrop-blur-sm sm:bottom-5 sm:left-1/2 sm:right-auto sm:w-[min(32rem,calc(100%-3rem))] sm:-translate-x-1/2 sm:border"
     >
       <ul className="grid h-16 grid-cols-4">
         {items.map(({ label, icon: Icon, active }) => (

@@ -4,7 +4,7 @@ import { tv, type VariantProps } from 'tailwind-variants'
 import { cn } from '@/lib/cn'
 
 const badgeStyles = tv({
-  base: 'inline-flex min-h-6 items-center rounded-sm border px-2 font-data text-[11px]',
+  base: 'inline-flex min-h-6 items-center border px-2 font-data text-[11px]',
   variants: {
     tone: {
       neutral: 'border-line-strong bg-paper text-graphite',

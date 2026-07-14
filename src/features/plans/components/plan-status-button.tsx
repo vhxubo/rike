@@ -1,11 +1,11 @@
-import { CheckCircle2, Circle, Clock3, TriangleAlert } from 'lucide-react'
+import { Clock3, Square, SquareCheckBig, TriangleAlert } from 'lucide-react'
 import { tv } from 'tailwind-variants'
 
 import type { ItemDisplayStatus } from '@/features/plans/model'
 import { cn } from '@/lib/cn'
 
 const statusButtonStyles = tv({
-  base: 'grid shrink-0 place-items-center rounded-sm border bg-paper transition-[color,border-color,background-color,transform] enabled:active:scale-95 disabled:cursor-default',
+  base: 'grid shrink-0 place-items-center border bg-paper transition-[color,border-color,background-color,transform] enabled:active:scale-95 disabled:cursor-default',
   variants: {
     size: {
       default: 'size-10',
@@ -25,8 +25,8 @@ const statusButtonStyles = tv({
 
 const icons = {
   upcoming: Clock3,
-  pending: Circle,
-  completed: CheckCircle2,
+  pending: Square,
+  completed: SquareCheckBig,
   missed: TriangleAlert,
 }
 

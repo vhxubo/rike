@@ -32,13 +32,13 @@ export function Switch({
       <span
         aria-hidden="true"
         className={cn(
-          'relative h-6 w-11 rounded-full border border-line-strong bg-workbench transition-colors',
+          'relative h-6 w-11 border border-line-strong bg-workbench transition-colors',
           checked && 'border-jade bg-jade',
         )}
       >
         <span
           className={cn(
-            'absolute left-0.5 top-0.5 size-4.5 rounded-full border border-line-strong bg-paper transition-transform',
+            'absolute left-0.5 top-0.5 size-4.5 border border-line-strong bg-paper transition-transform',
             checked && 'translate-x-5 border-paper',
           )}
         />

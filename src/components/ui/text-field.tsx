@@ -39,7 +39,7 @@ export function TextField({ id, label, hint, className, ...props }: TextFieldPro
       <input
         aria-describedby={hint ? `${fieldId}-hint` : undefined}
         className={cn(
-          'min-h-11 w-full rounded-sm border border-line-strong bg-paper px-3 text-sm text-ink placeholder:text-graphite/70 hover:border-ink disabled:cursor-not-allowed disabled:bg-workbench disabled:opacity-60',
+          'min-h-11 w-full border border-line-strong bg-paper px-3 text-sm text-ink placeholder:text-graphite/70 hover:border-ink disabled:cursor-not-allowed disabled:bg-workbench disabled:opacity-60',
           className,
         )}
         id={fieldId}
@@ -63,7 +63,7 @@ export function Textarea({ id, label, hint, className, ...props }: TextareaProps
       <textarea
         aria-describedby={hint ? `${fieldId}-hint` : undefined}
         className={cn(
-          'min-h-28 w-full resize-y rounded-sm border border-line-strong bg-paper px-3 py-2 text-sm leading-6 text-ink placeholder:text-graphite/70 hover:border-ink disabled:cursor-not-allowed disabled:bg-workbench disabled:opacity-60',
+          'min-h-28 w-full resize-y border border-line-strong bg-paper px-3 py-2 text-sm leading-6 text-ink placeholder:text-graphite/70 hover:border-ink disabled:cursor-not-allowed disabled:bg-workbench disabled:opacity-60',
           className,
         )}
         id={fieldId}

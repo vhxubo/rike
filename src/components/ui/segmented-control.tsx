@@ -19,7 +19,7 @@ export function SegmentedControl<T extends string>({
   onValueChange,
 }: SegmentedControlProps<T>) {
   return (
-    <div aria-label={label} className="inline-grid grid-flow-col rounded-sm border border-line-strong bg-paper p-1">
+    <div aria-label={label} className="inline-grid grid-flow-col border border-line-strong bg-paper p-1">
       {options.map((option) => {
         const selected = option.value === value
 
@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string>({
           <button
             aria-pressed={selected}
             className={cn(
-              'min-h-8 min-w-14 rounded-sm px-3 text-xs text-graphite transition-colors hover:text-ink',
+              'min-h-8 min-w-14 px-3 text-xs text-graphite transition-colors hover:text-ink',
               selected && 'bg-ink text-paper hover:text-paper',
             )}
             key={option.value}

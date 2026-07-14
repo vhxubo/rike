@@ -10,8 +10,8 @@ interface EmptyStateProps {
 
 export function EmptyState({ action, description, icon: Icon, title }: EmptyStateProps) {
   return (
-    <div className="grid justify-items-center rounded-sm border border-dashed border-line-strong bg-paper/80 px-5 py-8 text-center">
-      <span className="grid size-11 place-items-center rounded-sm border border-line text-graphite">
+    <div className="grid justify-items-center border border-dashed border-line-strong bg-paper/80 px-5 py-8 text-center">
+      <span className="grid size-11 place-items-center border border-line text-graphite">
         <Icon aria-hidden="true" size={21} strokeWidth={1.6} />
       </span>
       <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>

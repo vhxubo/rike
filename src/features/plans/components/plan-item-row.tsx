@@ -6,7 +6,7 @@ import { PlanStatusButton } from '@/features/plans/components/plan-status-button
 import { cn } from '@/lib/cn'
 
 const rowStyles = tv({
-  base: 'grid items-center rounded-sm border transition-colors',
+  base: 'grid items-center border transition-colors',
   variants: {
     size: {
       default: 'grid-cols-[2rem_minmax(0,1fr)_2.5rem] gap-3 px-3 py-3',
