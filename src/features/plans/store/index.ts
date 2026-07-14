@@ -49,6 +49,11 @@ interface PlanStore extends PlanPersistedState {
   removeSaturdayItem: (date: string, itemId: string) => string | null
   setSaturdayItemText: (date: string, itemId: string, value: string) => void
   toggleSaturdayResolution: (date: string, itemId: string) => void
+  applyWheelExemptions: (targets: Array<{
+    date: string
+    itemIds: 'all' | string[]
+    kind: 'weekday' | 'saturday'
+  }>) => void
 }
 
 function isCalendarView(value: unknown): value is CalendarView {
@@ -298,6 +303,45 @@ export const usePlanStore = create<PlanStore>()(
           )
 
           return { records: setRecord(state.records, date, { ...current, items }) }
+        })
+      },
+
+      applyWheelExemptions(targets) {
+        set((state) => {
+          let records = state.records
+
+          for (const target of targets) {
+            if (target.kind === 'weekday') {
+              if (getDayKind(target.date) !== 'weekday') continue
+              const current = records[target.date]
+              const record = current?.kind === 'weekday' ? current : createWeekdayRecord(target.date)
+              const templateItemIds = getWeekdayTemplate(target.date).map((item) => item.id)
+              const itemIds = target.itemIds === 'all'
+                ? templateItemIds
+                : target.itemIds.filter((itemId) => templateItemIds.includes(itemId))
+              const resolutions = { ...record.resolutions }
+              for (const itemId of itemIds) resolutions[itemId] = 'completed'
+              records = setRecord(records, target.date, { ...record, resolutions })
+              continue
+            }
+
+            const current = records[target.date]
+            if (getDayKind(target.date) !== 'saturday') continue
+            if (current?.kind !== 'saturday') continue
+            const itemIds = target.itemIds === 'all'
+              ? new Set(current.items.map((item) => item.id))
+              : new Set(target.itemIds)
+            records = setRecord(records, target.date, {
+              ...current,
+              items: current.items.map((item) =>
+                itemIds.has(item.id) && item.text.trim()
+                  ? { ...item, resolution: 'completed' as const }
+                  : item,
+              ),
+            })
+          }
+
+          return { records }
         })
       },
     }),

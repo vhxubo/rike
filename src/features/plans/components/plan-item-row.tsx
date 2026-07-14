@@ -45,6 +45,7 @@ const inputStyles = tv({
 interface PlanItemRowProps {
   canEdit: boolean
   canToggle: boolean
+  exempted?: boolean
   input: string
   inputRef?: Ref<HTMLInputElement>
   isEffective?: boolean
@@ -59,6 +60,7 @@ interface PlanItemRowProps {
 export function PlanItemRow({
   canEdit,
   canToggle,
+  exempted = false,
   input,
   inputRef,
   isEffective = true,
@@ -93,7 +95,7 @@ export function PlanItemRow({
   )
 
   return (
-    <li className={rowStyles({ size, status: visualStatus })}>
+    <li className={cn(rowStyles({ size, status: visualStatus }), exempted && 'plan-item-exempted')}>
       <span
         className={cn(
           'font-data text-sm text-graphite',

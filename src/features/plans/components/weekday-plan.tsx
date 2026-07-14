@@ -1,4 +1,5 @@
 import { Textarea } from '@/components/ui/text-field'
+import { isWheelItemExempted, useFishingWheelStore } from '@/features/fishing-wheel/store'
 import { getTodayISO } from '@/features/plans/date'
 import { PlanItemRow } from '@/features/plans/components/plan-item-row'
 import { canEditJournal, canEditPlan, canToggleStatus, getItemDisplayStatus } from '@/features/plans/status'
@@ -17,6 +18,7 @@ export function WeekdayPlan({ date }: WeekdayPlanProps) {
   const setWeekdayInput = usePlanStore((state) => state.setWeekdayInput)
   const setJournal = usePlanStore((state) => state.setJournal)
   const toggleResolution = usePlanStore((state) => state.toggleWeekdayResolution)
+  const wheelSpins = useFishingWheelStore((state) => state.spins)
   const today = getTodayISO()
   const planEditable = canEditPlan(date, today)
   const journalEditable = canEditJournal(date, today)
@@ -33,11 +35,13 @@ export function WeekdayPlan({ date }: WeekdayPlanProps) {
             today,
           )
           const effective = isEffectiveWeekdayItem(item, input)
+          const exempted = isWheelItemExempted(wheelSpins, date, item.id)
 
           return (
             <PlanItemRow
-              canEdit={planEditable && item.editableMode !== 'none'}
-              canToggle={canToggleStatus(date, today) && effective}
+              canEdit={planEditable && item.editableMode !== 'none' && !exempted}
+              canToggle={canToggleStatus(date, today) && effective && !exempted}
+              exempted={exempted}
               input={input}
               isEffective={effective}
               item={item}

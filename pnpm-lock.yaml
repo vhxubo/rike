@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@lucky-canvas/react':
+        specifier: ^0.1.13
+        version: 0.1.13
       '@tailwindcss/vite':
         specifier: ^4.1.11
         version: 4.3.2(vite@7.3.6(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.0))
@@ -894,6 +897,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucky-canvas/react@0.1.13':
+    resolution: {integrity: sha512-4M2bHOn5lEBubqDXXHKONnAERr3O4YIbQ8Q8QynmbD0DeSk/VQewBAzx4RopHr3Fe0dcN98YmvwaxqNl39OR7w==}
 
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -2265,6 +2271,9 @@ packages:
     resolution: {integrity: sha512-Tm1txJ2OkymCGkvwoHt33Y2JpN5xucVq1slHcgE6Lk0WjDfjgKWor5CdVER8U6DvcfMwh4M8XxmpTiyzfmfDYQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lucky-canvas@1.7.27:
+    resolution: {integrity: sha512-Ftz6qD+863bI7xijBmZg3dw3cNEc7odPr70EZQcGA14y3TgTAzH65HPosOCd6kKUlMwhntBaHMx3onoj9MtJRQ==}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -3930,6 +3939,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@lucky-canvas/react@0.1.13':
+    dependencies:
+      lucky-canvas: 1.7.27
+
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
   '@rollup/plugin-babel@6.1.0(@babel/core@7.29.7)(@types/babel__core@7.20.5)(rollup@4.62.2)':
@@ -5327,6 +5340,8 @@ snapshots:
   lucide-react@0.525.0(react@19.2.7):
     dependencies:
       react: 19.2.7
+
+  lucky-canvas@1.7.27: {}
 
   lz-string@1.5.0: {}
 

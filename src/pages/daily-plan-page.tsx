@@ -1,11 +1,13 @@
-import { Quote } from 'lucide-react'
+import { Heart, Quote } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 
+import { EmptyState } from '@/components/feedback/empty-state'
 import { InlineNotice } from '@/components/feedback/inline-notice'
 import { AppShell } from '@/components/layout/app-shell'
 import { PaperSheet } from '@/components/paper/paper-sheet'
 import { RuledSection } from '@/components/paper/ruled-section'
+import { IconButton } from '@/components/ui/icon-button'
 import type { CalendarView } from '@/features/calendar'
 import {
   MonthView,
@@ -19,7 +21,12 @@ import {
   WeekView,
 } from '@/features/calendar/components'
 import { useCalendarZoom } from '@/features/calendar/use-calendar-zoom'
-import { SAMPLE_DAILY_GUIDANCE } from '@/features/daily-guidance'
+import {
+  SAMPLE_DAILY_GUIDANCE,
+  type DailyGuidance,
+  type DailyGuidanceFavorite,
+} from '@/features/daily-guidance'
+import { FishingWheelPage } from '@/features/fishing-wheel/fishing-wheel-page'
 import { DateNavigator } from '@/features/plans/components/date-navigator'
 import { SaturdayPlan } from '@/features/plans/components/saturday-plan'
 import { SundaySummary } from '@/features/plans/components/sunday-summary'
@@ -33,6 +40,7 @@ import {
   getDayKind,
   getTodayISO,
   getWeekDates,
+  formatDisplayDate,
 } from '@/features/plans/date'
 import {
   calculateStatisticsSummary,
@@ -41,7 +49,145 @@ import {
 import { usePlanStore } from '@/features/plans/store'
 import type { StoreHydrationState } from '@/stores'
 
-type WorkspacePage = 'calendar' | 'week-summary' | 'statistics'
+type WorkspacePage = 'calendar' | 'week-summary' | 'statistics' | 'favorites' | 'fishing-wheel'
+
+const FAVORITES_STORAGE_KEY = 'rike-daily-guidance-favorites'
+
+function favoriteKey(date: string, guidanceId: string) {
+  return `${date}:${guidanceId}`
+}
+
+function readFavorites(): DailyGuidanceFavorite[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? 'null')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (item): item is DailyGuidanceFavorite =>
+        Boolean(item) &&
+        typeof item === 'object' &&
+        typeof (item as DailyGuidanceFavorite).date === 'string' &&
+        typeof (item as DailyGuidanceFavorite).guidanceId === 'string' &&
+        typeof (item as DailyGuidanceFavorite).savedAt === 'number' &&
+        typeof (item as DailyGuidanceFavorite).text === 'string',
+    )
+  } catch {
+    return []
+  }
+}
+
+function DailyGuidanceCard({
+  copied,
+  date,
+  guidance,
+  interactive,
+  isFavorite,
+  onCopy,
+  onToggleFavorite,
+}: {
+  copied: boolean
+  date: string
+  guidance: DailyGuidance
+  interactive: boolean
+  isFavorite: boolean
+  onCopy: (text: string, key: string) => void
+  onToggleFavorite: (date: string, guidance: DailyGuidance) => void
+}) {
+  const key = favoriteKey(date, guidance.id)
+
+  return (
+    <blockquote className="flex items-start gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
+      <Quote aria-hidden="true" className="mt-1 shrink-0 text-cinnabar" size={18} strokeWidth={1.6} />
+      <div className="flex min-w-0 flex-1 items-start gap-2">
+        <button
+          aria-label="复制每日一句"
+          className="group min-w-0 flex-1 cursor-copy border-0 bg-transparent p-0 text-left"
+          disabled={!interactive}
+          onClick={() => onCopy(guidance.text, key)}
+          type="button"
+        >
+          <p className="font-display text-base leading-7 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-lg">
+            {guidance.text}
+          </p>
+          {copied && <span className="font-data text-[10px] text-jade">已复制</span>}
+        </button>
+        {interactive && (
+          <IconButton
+            aria-pressed={isFavorite}
+            label={isFavorite ? '取消收藏每日一句' : '收藏每日一句'}
+            onClick={() => onToggleFavorite(date, guidance)}
+            variant="ghost"
+          >
+            <Heart
+              aria-hidden="true"
+              fill={isFavorite ? 'currentColor' : 'none'}
+              size={19}
+              strokeWidth={1.7}
+            />
+          </IconButton>
+        )}
+      </div>
+    </blockquote>
+  )
+}
+
+function FavoritesPage({
+  favorites,
+  onCopy,
+  onRemove,
+  copiedKey,
+}: {
+  favorites: DailyGuidanceFavorite[]
+  onCopy: (text: string, key: string) => void
+  onRemove: (favorite: DailyGuidanceFavorite) => void
+  copiedKey: string | null
+}) {
+  const sortedFavorites = [...favorites].sort(
+    (left, right) => left.date.localeCompare(right.date) || left.savedAt - right.savedAt,
+  )
+
+  return (
+    <PaperSheet>
+      <RuledSection className="pb-10 sm:pb-12" eyebrow="Favorites" title="每日一句收藏">
+        {sortedFavorites.length ? (
+          <ol className="grid gap-5">
+            {sortedFavorites.map((favorite) => {
+              const key = favoriteKey(favorite.date, favorite.guidanceId)
+              return (
+                <li className="border-b border-line pb-5 last:border-b-0" key={key}>
+                  <div className="flex items-start gap-2">
+                    <button
+                      aria-label="复制收藏的每日一句"
+                      className="group min-w-0 flex-1 cursor-copy border-0 bg-transparent p-0 text-left"
+                      onClick={() => onCopy(favorite.text, key)}
+                      type="button"
+                    >
+                      <p className="font-display text-base leading-7 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-lg">
+                        {favorite.text}
+                      </p>
+                      <p className="mt-2 font-data text-[11px] text-graphite">
+                        {formatDisplayDate(favorite.date)}
+                      </p>
+                      {copiedKey === key && <span className="font-data text-[10px] text-jade">已复制</span>}
+                    </button>
+                    <IconButton label="取消收藏每日一句" onClick={() => onRemove(favorite)} variant="ghost">
+                      <Heart aria-hidden="true" fill="currentColor" size={19} strokeWidth={1.7} />
+                    </IconButton>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
+        ) : (
+          <EmptyState
+            description="在每日一句右侧点击心形图标，就能把喜欢的句子留在这里。"
+            icon={Heart}
+            title="还没有收藏"
+          />
+        )}
+      </RuledSection>
+    </PaperSheet>
+  )
+}
 
 interface ReturnSnapshot {
   date: string
@@ -64,15 +210,23 @@ function getAdjacentDate(date: string, view: CalendarView, amount: -1 | 1) {
 
 function CalendarPage({
   date,
+  favorites,
   hydrationState,
   interactive = true,
   onNavigate,
+  onCopy,
+  onToggleFavorite,
+  copiedKey,
   view,
 }: {
   date: string
+  favorites: DailyGuidanceFavorite[]
   hydrationState: StoreHydrationState
   interactive?: boolean
   onNavigate: (amount: -1 | 1) => void
+  onCopy: (text: string, key: string) => void
+  onToggleFavorite: (date: string, guidance: DailyGuidance) => void
+  copiedKey: string | null
   view: CalendarView
 }) {
   const reduceMotion = useReducedMotion()
@@ -81,10 +235,15 @@ function CalendarPage({
   return (
     <PaperSheet>
       <RuledSection className="border-b border-line py-4">
-        <blockquote className="flex gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
-          <Quote aria-hidden="true" className="mt-1 shrink-0 text-cinnabar" size={18} strokeWidth={1.6} />
-          <p className="font-display text-base leading-7 text-ink sm:text-lg">{guidance.text}</p>
-        </blockquote>
+        <DailyGuidanceCard
+          copied={copiedKey === favoriteKey(date, guidance.id)}
+          date={date}
+          guidance={guidance}
+          interactive={interactive}
+          isFavorite={favorites.some((favorite) => favoriteKey(favorite.date, favorite.guidanceId) === favoriteKey(date, guidance.id))}
+          onCopy={onCopy}
+          onToggleFavorite={onToggleFavorite}
+        />
       </RuledSection>
 
       <RuledSection className="border-b border-line py-5">
@@ -153,12 +312,42 @@ export function DailyPlanPage() {
   const [returnSnapshot, setReturnSnapshot] = useState<ReturnSnapshot | null>(null)
   const [pageAnchor, setPageAnchor] = useState(selectedDate)
   const [statisticsRange, setStatisticsRange] = useState<StatisticsRange>('week')
+  const [favorites, setFavorites] = useState<DailyGuidanceFavorite[]>(readFavorites)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const pageTurnRef = useRef<PageTurnHandle>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const today = getTodayISO()
   const contextDate = workspacePage === 'calendar' ? selectedDate : pageAnchor
   const isCanonicalTodayDay =
     workspacePage === 'calendar' && calendarView === 'day' && selectedDate === today
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites))
+    } catch {
+      // Favorites remain available for the active session when storage is unavailable.
+    }
+  }, [favorites])
+
+  const copyGuidance = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1400)
+    } catch {
+      setCopiedKey(null)
+    }
+  }
+
+  const toggleFavorite = (date: string, guidance: DailyGuidance) => {
+    const key = favoriteKey(date, guidance.id)
+    setFavorites((current) => {
+      if (current.some((favorite) => favoriteKey(favorite.date, favorite.guidanceId) === key)) {
+        return current.filter((favorite) => favoriteKey(favorite.date, favorite.guidanceId) !== key)
+      }
+      return [...current, { date, guidanceId: guidance.id, savedAt: Date.now(), text: guidance.text }]
+    })
+  }
 
   useCalendarZoom(
     workspaceRef,
@@ -182,6 +371,11 @@ export function DailyPlanPage() {
       if (workspacePage !== 'calendar') saveReturnSnapshot()
       setCalendarCursor(contextDate, destination)
       setWorkspacePage('calendar')
+      return
+    }
+    if (destination === 'favorites' || destination === 'fishing-wheel') {
+      saveReturnSnapshot()
+      setWorkspacePage(destination)
       return
     }
     saveReturnSnapshot()
@@ -221,6 +415,8 @@ export function DailyPlanPage() {
           : selectedDate.slice(0, 7) === today.slice(0, 7)
       : workspacePage === 'week-summary'
         ? getWeekDates(pageAnchor).includes(today)
+        : workspacePage === 'favorites' || workspacePage === 'fishing-wheel'
+          ? true
         : statisticsRange === 'all'
           ? true
           : statisticsRange === 'week'
@@ -245,9 +441,13 @@ export function DailyPlanPage() {
   const renderCalendarPage = (date: string, interactive: boolean) => (
     <CalendarPage
       date={date}
+      favorites={favorites}
       hydrationState={hydrationState}
       interactive={interactive}
       onNavigate={(amount) => interactive && pageTurnRef.current?.turn(amount)}
+      onCopy={copyGuidance}
+      onToggleFavorite={toggleFavorite}
+      copiedKey={copiedKey}
       view={calendarView}
     />
   )
@@ -289,6 +489,21 @@ export function DailyPlanPage() {
           </PageTurn>
         )}
         {workspacePage === 'week-summary' && <WeekSummaryPage anchorDate={pageAnchor} />}
+        {workspacePage === 'favorites' && (
+          <FavoritesPage
+            copiedKey={copiedKey}
+            favorites={favorites}
+            onCopy={copyGuidance}
+            onRemove={(favorite) =>
+              setFavorites((current) =>
+                current.filter(
+                  (item) => favoriteKey(item.date, item.guidanceId) !== favoriteKey(favorite.date, favorite.guidanceId),
+                ),
+              )
+            }
+          />
+        )}
+        {workspacePage === 'fishing-wheel' && <FishingWheelPage />}
         {workspacePage === 'statistics' && (
           <PaperSheet>
             <RuledSection className="pb-10 sm:pb-12">

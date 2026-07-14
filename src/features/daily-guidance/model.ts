@@ -14,3 +14,9 @@ export interface DailyGuidance {
   tags: string[]
 }
 
+export interface DailyGuidanceFavorite {
+  date: string
+  guidanceId: string
+  savedAt: number
+  text: string
+}

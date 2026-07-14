@@ -1,11 +1,28 @@
-import { ArrowLeft, BarChart3, CalendarDays, CalendarRange, ChartNoAxesCombined, Menu, Rows3 } from 'lucide-react'
+import {
+  ArrowLeft,
+  BarChart3,
+  CalendarDays,
+  CalendarRange,
+  ChartNoAxesCombined,
+  Dices,
+  Heart,
+  Menu,
+  Rows3,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { IconButton } from '@/components/ui/icon-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useTheme, type ThemePreference } from '@/features/theme'
 
-export type ToolbarDestination = 'day' | 'week-summary' | 'week' | 'month' | 'statistics'
+export type ToolbarDestination =
+  | 'day'
+  | 'week-summary'
+  | 'week'
+  | 'month'
+  | 'statistics'
+  | 'favorites'
+  | 'fishing-wheel'
 
 interface WorkspaceToolbarProps {
   canGoBack: boolean
@@ -25,6 +42,8 @@ const destinations = [
   { value: 'month', label: '月视图', icon: BarChart3 },
   { value: 'week-summary', label: '本周总结', icon: Rows3 },
   { value: 'statistics', label: '总统计', icon: ChartNoAxesCombined },
+  { value: 'favorites', label: '每日一句收藏', icon: Heart },
+  { value: 'fishing-wheel', label: '摸鱼大转盘', icon: Dices },
 ] satisfies Array<{ value: ToolbarDestination; label: string; icon: typeof Rows3 }>
 
 export function WorkspaceToolbar({ canGoBack, onBack, onNavigate }: WorkspaceToolbarProps) {
