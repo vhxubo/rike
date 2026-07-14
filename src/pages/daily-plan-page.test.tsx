@@ -54,6 +54,20 @@ describe('DailyPlanPage', () => {
     expect(await screen.findByLabelText('2026-07月历')).toBeInTheDocument()
   })
 
+  it('keeps the header outside the unclipped page turn and removes legacy chrome', () => {
+    renderPage()
+
+    const header = screen.getByRole('banner')
+    const pageTurn = document.querySelector('.page-turn-surface')
+    expect(header).toHaveClass('sticky')
+    expect(pageTurn).not.toContainElement(header)
+    expect(pageTurn).toHaveClass('overflow-visible')
+    expect(screen.queryByRole('button', { name: '打开设置' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: '主要导航' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Today')).not.toBeInTheDocument()
+    expect(screen.queryByText('Plan')).not.toBeInTheDocument()
+  })
+
   it('opens workspace tools and restores the previous calendar view', async () => {
     const user = userEvent.setup()
     renderPage()

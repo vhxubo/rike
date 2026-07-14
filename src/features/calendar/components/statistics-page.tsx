@@ -29,26 +29,16 @@ export function StatisticsPage({
   anchorDate,
   onNavigate,
   onRangeChange,
-  onToday,
   range,
 }: {
   anchorDate: string
   onNavigate: (amount: -1 | 1) => void
   onRangeChange: (range: StatisticsRange) => void
-  onToday: () => void
   range: StatisticsRange
 }) {
   const records = usePlanStore((state) => state.records)
   const today = getTodayISO()
   const summary = calculateStatisticsSummary(range, anchorDate, records, today)
-  const isCurrent =
-    range === 'week'
-      ? getWeekDates(anchorDate).includes(today)
-      : range === 'month'
-        ? anchorDate.slice(0, 7) === today.slice(0, 7)
-        : range === 'year'
-          ? anchorDate.slice(0, 4) === today.slice(0, 4)
-          : true
 
   return (
     <div className="grid gap-8">
@@ -63,9 +53,6 @@ export function StatisticsPage({
         )}
         <div>
           <p className="font-display text-2xl font-semibold">{rangeTitle(range, anchorDate)}</p>
-          {!isCurrent && range !== 'all' && (
-            <button className="mt-2 border-b border-cinnabar font-data text-[11px] text-cinnabar" onClick={onToday} type="button">回到今天</button>
-          )}
         </div>
         {range === 'all' ? <span /> : (
           <IconButton label="下一统计范围" onClick={() => onNavigate(1)} variant="ghost">

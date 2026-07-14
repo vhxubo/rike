@@ -16,7 +16,6 @@ interface DateNavigatorProps {
   date: string
   onNext: () => void
   onPrevious: () => void
-  onToday?: () => void
   view?: CalendarView
 }
 
@@ -26,16 +25,10 @@ const labels: Record<CalendarView, { previous: string; next: string }> = {
   month: { previous: '上个月', next: '下个月' },
 }
 
-export function DateNavigator({ date, onNext, onPrevious, onToday, view = 'day' }: DateNavigatorProps) {
+export function DateNavigator({ date, onNext, onPrevious, view = 'day' }: DateNavigatorProps) {
   const today = getTodayISO()
   const isToday = date === today
   const weekDates = getWeekDates(date)
-  const isCurrentContext =
-    view === 'day'
-      ? isToday
-      : view === 'week'
-        ? weekDates.includes(today)
-        : date.slice(0, 7) === today.slice(0, 7)
   const compactLabel =
     view === 'day'
       ? formatCompactDate(date)
@@ -56,11 +49,6 @@ export function DateNavigator({ date, onNext, onPrevious, onToday, view = 'day' 
           {isToday && <Badge tone="accent">今天</Badge>}
         </div>
         <p className="mt-1 font-display text-2xl font-semibold text-ink">{title}</p>
-        {!isCurrentContext && onToday && (
-          <button className="mt-2 border-b border-cinnabar font-data text-[11px] text-cinnabar" onClick={onToday} type="button">
-            回到今天
-          </button>
-        )}
       </div>
 
       <IconButton label={labels[view].next} onClick={onNext} variant="ghost">

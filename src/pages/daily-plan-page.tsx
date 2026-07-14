@@ -1,14 +1,11 @@
-import { CalendarDays, Home, LayoutTemplate, Quote, Settings } from 'lucide-react'
+import { Quote } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 
 import { InlineNotice } from '@/components/feedback/inline-notice'
-import { AppShell, type BottomNavItem } from '@/components/layout/app-shell'
-import { TopBar } from '@/components/layout/top-bar'
+import { AppShell } from '@/components/layout/app-shell'
 import { PaperSheet } from '@/components/paper/paper-sheet'
 import { RuledSection } from '@/components/paper/ruled-section'
-import { Button } from '@/components/ui/button'
-import { IconButton } from '@/components/ui/icon-button'
 import type { CalendarView } from '@/features/calendar'
 import {
   MonthView,
@@ -16,10 +13,10 @@ import {
   type PageTurnHandle,
   StatisticsPage,
   StatisticsPanel,
+  StickyWorkspaceHeader,
+  TodayFab,
   type ToolbarDestination,
-  ViewSwitcher,
   WeekView,
-  WorkspaceToolbar,
 } from '@/features/calendar/components'
 import { useCalendarZoom } from '@/features/calendar/use-calendar-zoom'
 import { SAMPLE_DAILY_GUIDANCE } from '@/features/daily-guidance'
@@ -51,21 +48,6 @@ interface ReturnSnapshot {
   view: CalendarView
 }
 
-const navigation: BottomNavItem[] = [
-  { label: '首页', icon: Home, active: true },
-  { label: '计划', icon: CalendarDays },
-  { label: '模板', icon: LayoutTemplate },
-  { label: '设置', icon: Settings },
-]
-
-function SettingsAction({ disabled = false }: { disabled?: boolean }) {
-  return (
-    <IconButton disabled={disabled} label="打开设置" variant="ghost">
-      <Settings aria-hidden="true" size={20} strokeWidth={1.7} />
-    </IconButton>
-  )
-}
-
 function DatePlan({ date, interactive = true }: { date: string; interactive?: boolean }) {
   const kind = getDayKind(date)
   if (kind === 'saturday') return <SaturdayPlan date={date} initialize={interactive} />
@@ -79,57 +61,36 @@ function getAdjacentDate(date: string, view: CalendarView, amount: -1 | 1) {
   return addISOMonth(date, amount)
 }
 
-interface CalendarPageProps {
-  date: string
-  hydrationState: StoreHydrationState
-  interactive?: boolean
-  leading: ReactNode
-  onNavigate: (amount: -1 | 1) => void
-  onOpenWeekSummary: () => void
-  onToday: () => void
-  onViewChange: (view: CalendarView) => void
-  view: CalendarView
-}
-
 function CalendarPage({
   date,
   hydrationState,
   interactive = true,
-  leading,
   onNavigate,
-  onOpenWeekSummary,
-  onToday,
-  onViewChange,
   view,
-}: CalendarPageProps) {
+}: {
+  date: string
+  hydrationState: StoreHydrationState
+  interactive?: boolean
+  onNavigate: (amount: -1 | 1) => void
+  view: CalendarView
+}) {
   const reduceMotion = useReducedMotion()
   const guidance = SAMPLE_DAILY_GUIDANCE[Number(date.slice(-2)) % SAMPLE_DAILY_GUIDANCE.length]
 
   return (
     <PaperSheet>
-      <TopBar action={<SettingsAction disabled={!interactive} />} leading={leading} />
-
-      <RuledSection className="border-b border-line" eyebrow="Today">
-        <DateNavigator
-          date={date}
-          onNext={() => onNavigate(1)}
-          onPrevious={() => onNavigate(-1)}
-          onToday={interactive ? onToday : undefined}
-          view={view}
-        />
-        <ViewSwitcher onChange={onViewChange} value={view} />
-        {view === 'day' && interactive && (
-          <div className="mt-4 flex justify-center" data-no-date-swipe>
-            <Button onClick={onOpenWeekSummary} size="sm" variant="secondary">查看本周总结</Button>
-          </div>
-        )}
-        <blockquote className="mt-6 flex gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
+      <RuledSection className="border-b border-line py-4">
+        <blockquote className="flex gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
           <Quote aria-hidden="true" className="mt-1 shrink-0 text-cinnabar" size={18} strokeWidth={1.6} />
           <p className="font-display text-base leading-7 text-ink sm:text-lg">{guidance.text}</p>
         </blockquote>
       </RuledSection>
 
-      <RuledSection className="overflow-hidden pb-28 sm:pb-24" eyebrow="Plan">
+      <RuledSection className="border-b border-line py-5">
+        <DateNavigator date={date} onNext={() => onNavigate(1)} onPrevious={() => onNavigate(-1)} view={view} />
+      </RuledSection>
+
+      <RuledSection className="overflow-visible pb-10 sm:pb-12">
         {hydrationState === 'hydrating' ? (
           <div className="grid min-h-64 place-items-center text-sm text-graphite" role="status">正在整理纸页…</div>
         ) : (
@@ -159,23 +120,18 @@ function CalendarPage({
   )
 }
 
-function WeekSummaryPage({ anchorDate, leading, onToday }: { anchorDate: string; leading: ReactNode; onToday: () => void }) {
+function WeekSummaryPage({ anchorDate }: { anchorDate: string }) {
   const records = usePlanStore((state) => state.records)
   const today = getTodayISO()
   const weekDates = getWeekDates(anchorDate)
-  const current = weekDates.includes(today)
   const summary = calculateStatisticsSummary('week', anchorDate, records, today)
 
   return (
     <PaperSheet>
-      <TopBar action={<SettingsAction />} leading={leading} />
-      <RuledSection className="pb-28 sm:pb-24" eyebrow="Week Summary">
+      <RuledSection className="pb-10 sm:pb-12">
         <header className="mb-8 text-center">
           <p className="font-data text-xs text-cinnabar">{weekDates[0]} — {weekDates[6]}</p>
           <h1 className="mt-2 font-display text-3xl font-semibold">本周总结</h1>
-          {!current && (
-            <button className="mt-3 border-b border-cinnabar font-data text-[11px] text-cinnabar" onClick={onToday} type="button">回到今天</button>
-          )}
         </header>
         <StatisticsPanel summary={summary} />
       </RuledSection>
@@ -197,6 +153,8 @@ export function DailyPlanPage() {
   const [statisticsRange, setStatisticsRange] = useState<StatisticsRange>('week')
   const pageTurnRef = useRef<PageTurnHandle>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
+  const today = getTodayISO()
+  const contextDate = workspacePage === 'calendar' ? selectedDate : pageAnchor
 
   useCalendarZoom(
     workspaceRef,
@@ -211,15 +169,15 @@ export function DailyPlanPage() {
 
   const openWeekSummary = () => {
     saveReturnSnapshot()
-    setPageAnchor(selectedDate)
+    setPageAnchor(contextDate)
     setWorkspacePage('week-summary')
   }
 
   const openDestination = (destination: ToolbarDestination) => {
     saveReturnSnapshot()
-    setPageAnchor(selectedDate)
+    setPageAnchor(contextDate)
     if (destination === 'week' || destination === 'month') {
-      setCalendarView(destination)
+      setCalendarCursor(contextDate, destination)
       setWorkspacePage('calendar')
       return
     }
@@ -231,6 +189,15 @@ export function DailyPlanPage() {
     setWorkspacePage('week-summary')
   }
 
+  const changeViewFromHeader = (view: CalendarView) => {
+    if (workspacePage === 'calendar') {
+      setCalendarView(view)
+      return
+    }
+    setCalendarCursor(contextDate, view)
+    setWorkspacePage('calendar')
+  }
+
   const goBack = () => {
     if (!returnSnapshot) return
     setCalendarCursor(returnSnapshot.date, returnSnapshot.view)
@@ -238,10 +205,6 @@ export function DailyPlanPage() {
     setPageAnchor(returnSnapshot.date)
     setReturnSnapshot(null)
   }
-
-  const leading = (
-    <WorkspaceToolbar canGoBack={Boolean(returnSnapshot)} onBack={goBack} onNavigate={openDestination} />
-  )
 
   const navigateStatistics = (amount: -1 | 1) => {
     setPageAnchor((date) =>
@@ -253,22 +216,48 @@ export function DailyPlanPage() {
     )
   }
 
+  const isTodayContext =
+    workspacePage === 'calendar'
+      ? calendarView === 'day'
+        ? selectedDate === today
+        : calendarView === 'week'
+          ? getWeekDates(selectedDate).includes(today)
+          : selectedDate.slice(0, 7) === today.slice(0, 7)
+      : workspacePage === 'week-summary'
+        ? getWeekDates(pageAnchor).includes(today)
+        : statisticsRange === 'all'
+          ? true
+          : statisticsRange === 'week'
+            ? getWeekDates(pageAnchor).includes(today)
+            : statisticsRange === 'month'
+              ? pageAnchor.slice(0, 7) === today.slice(0, 7)
+              : pageAnchor.slice(0, 4) === today.slice(0, 4)
+
+  const goToday = () => {
+    if (workspacePage === 'calendar') setSelectedDate(today)
+    else setPageAnchor(today)
+  }
+
   const renderCalendarPage = (date: string, interactive: boolean) => (
     <CalendarPage
       date={date}
       hydrationState={hydrationState}
       interactive={interactive}
-      leading={interactive ? leading : <span className="block size-10" />}
       onNavigate={(amount) => interactive && pageTurnRef.current?.turn(amount)}
-      onOpenWeekSummary={openWeekSummary}
-      onToday={() => setSelectedDate(getTodayISO())}
-      onViewChange={(view) => interactive && setCalendarView(view)}
       view={calendarView}
     />
   )
 
   return (
-    <AppShell navigation={navigation}>
+    <AppShell>
+      <StickyWorkspaceHeader
+        canGoBack={Boolean(returnSnapshot)}
+        onBack={goBack}
+        onNavigate={openDestination}
+        onOpenWeekSummary={openWeekSummary}
+        onViewChange={changeViewFromHeader}
+        view={calendarView}
+      />
       <div ref={workspaceRef}>
         {workspacePage === 'calendar' && (
           <PageTurn
@@ -279,24 +268,21 @@ export function DailyPlanPage() {
             {renderCalendarPage(selectedDate, true)}
           </PageTurn>
         )}
-        {workspacePage === 'week-summary' && (
-          <WeekSummaryPage anchorDate={pageAnchor} leading={leading} onToday={() => setPageAnchor(getTodayISO())} />
-        )}
+        {workspacePage === 'week-summary' && <WeekSummaryPage anchorDate={pageAnchor} />}
         {workspacePage === 'statistics' && (
           <PaperSheet>
-            <TopBar action={<SettingsAction />} leading={leading} />
-            <RuledSection className="pb-28 sm:pb-24" eyebrow="Statistics">
+            <RuledSection className="pb-10 sm:pb-12">
               <StatisticsPage
                 anchorDate={pageAnchor}
                 onNavigate={navigateStatistics}
                 onRangeChange={setStatisticsRange}
-                onToday={() => setPageAnchor(getTodayISO())}
                 range={statisticsRange}
               />
             </RuledSection>
           </PaperSheet>
         )}
       </div>
+      {!isTodayContext && <TodayFab onToday={goToday} />}
     </AppShell>
   )
 }

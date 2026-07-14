@@ -8,6 +8,8 @@ describe('soft page turn motion', () => {
       targetXPercent: 6,
       targetOpacity: 0.88,
       edgeIntensity: 0,
+      foldCenterPercent: 60,
+      foldAngle: 0,
     })
     expect(getPageTurnVisual(1, 1)).toMatchObject({
       currentXPercent: -100,
@@ -15,6 +17,8 @@ describe('soft page turn motion', () => {
       targetXPercent: 0,
       targetOpacity: 1,
       edgeIntensity: 0,
+      foldCenterPercent: 60,
+      foldAngle: 0,
     })
   })
 
@@ -29,6 +33,17 @@ describe('soft page turn motion', () => {
       currentXPercent: 50,
       currentRotateY: 10,
       targetXPercent: -3,
+    })
+  })
+
+  it('moves and tilts the fold with the pointer height', () => {
+    expect(getPageTurnVisual(0.5, 1, 0.1)).toMatchObject({
+      foldCenterPercent: 10,
+      foldAngle: -9.6,
+    })
+    expect(getPageTurnVisual(0.5, 1, 0.9)).toMatchObject({
+      foldCenterPercent: 90,
+      foldAngle: 9.6,
     })
   })
 })

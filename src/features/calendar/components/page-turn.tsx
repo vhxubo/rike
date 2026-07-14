@@ -40,12 +40,19 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
 ) {
   const reduceMotion = useReducedMotion()
   const progress = useMotionValue(0)
+  const foldY = useMotionValue(0.6)
   const directionRef = useRef<-1 | 1>(1)
   const currentX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).currentXPercent}%`)
   const currentRotateY = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).currentRotateY)
   const targetX = useTransform(progress, (value) => `${getPageTurnVisual(value, directionRef.current).targetXPercent}%`)
   const targetOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).targetOpacity)
   const edgeOpacity = useTransform(progress, (value) => getPageTurnVisual(value, directionRef.current).edgeIntensity * 0.32)
+  const foldTop = useTransform([progress, foldY], ([turnProgress, pointerY]) =>
+    `${getPageTurnVisual(Number(turnProgress), directionRef.current, Number(pointerY)).foldCenterPercent}%`,
+  )
+  const foldAngle = useTransform([progress, foldY], ([turnProgress, pointerY]) =>
+    getPageTurnVisual(Number(turnProgress), directionRef.current, Number(pointerY)).foldAngle,
+  )
   const [direction, setDirection] = useState<-1 | 1 | null>(null)
   const [busy, setBusy] = useState(false)
   const session = useRef<PointerSession | null>(null)
@@ -59,8 +66,9 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     session.current = null
   }
 
-  const finishTurn = (amount: -1 | 1) => {
+  const finishTurn = (amount: -1 | 1, preserveFold = false) => {
     if (busy) return
+    if (!preserveFold) foldY.set(0.6)
     setBusy(true)
     directionRef.current = amount
     setDirection(amount)
@@ -108,6 +116,8 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     }
 
     event.currentTarget.setPointerCapture(event.pointerId)
+    const bounds = event.currentTarget.getBoundingClientRect()
+    foldY.set(bounds.height ? (event.clientY - bounds.top) / bounds.height : 0.6)
     session.current = {
       id: event.pointerId,
       startX: event.clientX,
@@ -138,6 +148,8 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     }
 
     event.preventDefault()
+    const bounds = event.currentTarget.getBoundingClientRect()
+    foldY.set(bounds.height ? Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) : 0.6)
     const elapsed = Math.max(1, event.timeStamp - current.lastTime)
     current.velocityX = ((event.clientX - current.lastX) / elapsed) * 1000
     current.lastX = event.clientX
@@ -152,13 +164,13 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     const offsetX = event.clientX - current.startX
     const amount = getDateSwipeAmount(offsetX, current.velocityX)
     session.current = null
-    if (amount) finishTurn(amount)
+    if (amount) finishTurn(amount, true)
     else cancel()
   }
 
   return (
     <div
-      className={cn('page-turn-surface relative overflow-hidden', className)}
+      className={cn('page-turn-surface relative overflow-visible', className)}
       onPointerCancel={cancel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -187,22 +199,26 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
         <motion.div
           aria-hidden="true"
           className={cn(
-            'page-turn-fold pointer-events-none absolute inset-y-0 z-20 w-20',
+            'page-turn-fold pointer-events-none absolute z-20 h-44 w-24 -translate-y-1/2',
           )}
           style={{
             left: direction === -1 ? 0 : 'auto',
             opacity: edgeOpacity,
             right: direction === 1 ? 0 : 'auto',
+            rotateZ: foldAngle,
             scaleX: direction === -1 ? -1 : 1,
+            top: foldTop,
           }}
         />
         <motion.div
           aria-hidden="true"
-          className="page-turn-edge pointer-events-none absolute inset-y-0 z-30 w-px"
+          className="page-turn-edge pointer-events-none absolute z-30 h-44 w-px -translate-y-1/2"
           style={{
             left: direction === -1 ? 0 : 'auto',
             opacity: edgeOpacity,
             right: direction === 1 ? 0 : 'auto',
+            rotateZ: foldAngle,
+            top: foldTop,
           }}
         />
       </motion.div>

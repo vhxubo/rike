@@ -1,8 +1,5 @@
 import {
-  CalendarDays,
   FileText,
-  Home,
-  LayoutTemplate,
   Plus,
   Quote,
   Settings,
@@ -12,7 +9,7 @@ import { useState } from 'react'
 
 import { EmptyState } from '@/components/feedback/empty-state'
 import { InlineNotice } from '@/components/feedback/inline-notice'
-import { AppShell, type BottomNavItem } from '@/components/layout/app-shell'
+import { AppShell } from '@/components/layout/app-shell'
 import { TopBar } from '@/components/layout/top-bar'
 import { DateStamp } from '@/components/paper/date-stamp'
 import { PaperSheet } from '@/components/paper/paper-sheet'
@@ -27,13 +24,6 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea, TextField } from '@/components/ui/text-field'
 import type { CalendarView } from '@/features/calendar'
 import { SAMPLE_DAILY_GUIDANCE } from '@/features/daily-guidance'
-
-const navigation: BottomNavItem[] = [
-  { label: '首页', icon: Home, active: true },
-  { label: '计划', icon: CalendarDays },
-  { label: '模板', icon: LayoutTemplate },
-  { label: '设置', icon: Settings },
-]
 
 const viewOptions = [
   { label: '日', value: 'day' },
@@ -60,7 +50,7 @@ export function ComponentShowcasePage({ date = new Date() }: ComponentShowcasePa
       }
 
   return (
-    <AppShell navigation={navigation}>
+    <AppShell>
       <PaperSheet>
         <TopBar
           action={
