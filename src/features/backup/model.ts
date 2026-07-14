@@ -1,11 +1,12 @@
 import type { CalendarCursor } from '@/features/calendar'
-import type { CyclePreset, PlanTemplate, WeeklyPlan } from '@/types/plans'
+import type { PlanRecords } from '@/features/plans'
+import type { CyclePreset, UserPlanTemplate } from '@/types/plans'
 
 export const BACKUP_SCHEMA_VERSION = 1 as const
 
 export interface BackupData {
-  plans: WeeklyPlan[]
-  templates: PlanTemplate[]
+  planRecords: PlanRecords
+  templates: UserPlanTemplate[]
   cyclePresets: CyclePreset[]
   settings: Record<string, unknown>
   calendar: CalendarCursor
@@ -20,4 +21,3 @@ export interface BackupEnvelope {
 export type BackupValidationResult =
   | { valid: true; backup: BackupEnvelope }
   | { valid: false; reason: 'invalid-json' | 'invalid-shape' | 'unsupported-version' }
-

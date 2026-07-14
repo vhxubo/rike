@@ -1,25 +1,18 @@
+import type { EditableMode, Subject } from '@/features/plans/model'
+
 export type ISODateString = string
 
-export interface PlanItem {
-  id: string
-  title: string
-  subject?: string
-  date: ISODateString
-  completed: boolean
-  order: number
-}
-
-export interface WeeklyPlan {
-  id: string
-  weekStartsOn: ISODateString
-  items: PlanItem[]
-  updatedAt: string
-}
-
-export interface PlanTemplate {
+export interface UserPlanTemplate {
   id: string
   name: string
-  items: Array<Pick<PlanItem, 'title' | 'subject' | 'order'>>
+  items: Array<{
+    id: string
+    order: number
+    subject: Subject | null
+    prefix: string
+    suffix?: string
+    editableMode: EditableMode
+  }>
 }
 
 export interface CyclePreset {
@@ -28,4 +21,3 @@ export interface CyclePreset {
   cycle: 'day' | 'week' | 'month' | 'term'
   templateId: string
 }
-

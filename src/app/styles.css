@@ -9,6 +9,8 @@
   --color-line-strong: #929990;
   --color-cinnabar: #b74736;
   --color-cinnabar-soft: #f4e2dc;
+  --color-missed: #f9ded9;
+  --color-warning: #d99a24;
   --color-jade: #3e7665;
   --color-jade-soft: #dcebe4;
   --font-display: ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
@@ -86,4 +88,3 @@ button,
     transition-duration: 0.01ms !important;
   }
 }
-

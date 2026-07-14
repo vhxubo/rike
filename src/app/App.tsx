@@ -1,6 +1,5 @@
-import { ComponentShowcasePage } from '@/pages/component-showcase-page'
+import { DailyPlanPage } from '@/pages/daily-plan-page'
 
 export function App() {
-  return <ComponentShowcasePage />
+  return <DailyPlanPage />
 }
-
