@@ -107,7 +107,7 @@ function DailyGuidanceCard({
           onClick={() => onCopy(guidance.text, key)}
           type="button"
         >
-          <p className="font-display text-sm leading-6 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-base">
+          <p className="font-guidance text-sm leading-6 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-base">
             {guidance.text}
           </p>
           {copied && <span className="font-data text-[10px] text-jade">已复制</span>}
@@ -163,7 +163,7 @@ function FavoritesPage({
                       onClick={() => onCopy(favorite.text, key)}
                       type="button"
                     >
-                      <p className="font-display text-base leading-7 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-lg">
+                      <p className="font-guidance text-base leading-7 text-ink group-hover:underline group-hover:decoration-dashed group-hover:underline-offset-4 sm:text-lg">
                         {favorite.text}
                       </p>
                       <p className="mt-2 font-data text-[11px] text-graphite">

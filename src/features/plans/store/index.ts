@@ -183,7 +183,7 @@ export const usePlanStore = create<PlanStore>()(
         if (!canEditPlan(date, today) || getDayKind(date) !== 'weekday') return
 
         const item = getWeekdayTemplate(date).find((templateItem) => templateItem.id === itemId)
-        if (!item || item.editableMode === 'none') return
+        if (!item || (item.editableMode === 'none' && !item.prefix.includes('错题/知识点'))) return
 
         set((state) => {
           const current = state.records[date]

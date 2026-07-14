@@ -39,7 +39,7 @@ export function WeekdayPlan({ date }: WeekdayPlanProps) {
 
           return (
             <PlanItemRow
-              canEdit={planEditable && item.editableMode !== 'none' && !exempted}
+              canEdit={planEditable && (item.editableMode !== 'none' || item.prefix.includes('错题/知识点')) && !exempted}
               canToggle={canToggleStatus(date, today) && effective && !exempted}
               exempted={exempted}
               input={input}

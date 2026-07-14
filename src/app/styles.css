@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'YShi Written SC';
+  src: url('../public/fonts/YShiWrittenSC-Regular.ttf') format('truetype');
+  font-display: swap;
+  font-weight: 400;
+}
+
 @theme {
   --color-workbench: #e8ece7;
   --color-paper: #fffdf7;
@@ -13,11 +20,13 @@
   --color-warning: #d99a24;
   --color-jade: #3e7665;
   --color-jade-soft: #dcebe4;
-  --font-display: ui-serif, 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-display: 'Noto Serif SC', serif;
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-task: 'Noto Serif SC', serif;
   --font-data: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono',
     monospace;
+  --font-guidance: 'YShi Written SC', cursive;
   --shadow-paper: 0 18px 55px rgb(32 35 31 / 10%);
 }
 

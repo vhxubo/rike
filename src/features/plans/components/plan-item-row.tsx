@@ -25,11 +25,11 @@ const rowStyles = tv({
 })
 
 const inputStyles = tv({
-  base: 'min-w-0 border-0 border-b bg-transparent px-1 text-ink outline-none placeholder:text-graphite/55 focus-visible:border-cinnabar focus-visible:outline-none',
+  base: 'min-w-0 border-0 border-b bg-transparent px-1 font-task text-ink outline-none placeholder:text-graphite/55 focus-visible:border-cinnabar focus-visible:outline-none',
   variants: {
     size: {
-      default: 'min-h-9 text-sm',
-      large: 'min-h-13 border-b-2 text-lg',
+      default: 'min-h-9 text-base',
+      large: 'min-h-13 border-b-2 text-xl',
     },
     completed: {
       true: 'line-through opacity-55',
@@ -73,9 +73,11 @@ export function PlanItemRow({
 }: PlanItemRowProps) {
   const completed = status === 'completed'
   const visualStatus = isEffective ? status : 'upcoming'
+  const choiceParts = item.prefix.split('错题/知识点')
+  const hasChoice = choiceParts.length === 2
   const contentClassName = cn(
-    'min-w-0 leading-7',
-    size === 'large' ? 'text-lg leading-9' : 'text-sm',
+    'min-w-0 font-task leading-7',
+    size === 'large' ? 'text-xl leading-9' : 'text-base',
     completed && 'line-through opacity-55',
     visualStatus === 'missed' && 'text-cinnabar',
   )
@@ -107,7 +109,30 @@ export function PlanItemRow({
       </span>
 
       <div className={contentClassName}>
-        {item.editableMode === 'none' && item.prefix}
+        {item.editableMode === 'none' && !hasChoice && item.prefix}
+        {item.editableMode === 'none' && hasChoice && (
+          <span>
+            {choiceParts[0]}
+            {['错题', '知识点'].map((choice, index) => (
+              <span key={choice}>
+                {index > 0 && '/'}
+                <button
+                  aria-pressed={input === choice}
+                  className={cn(
+                    'cursor-pointer border-0 bg-transparent p-0 transition-opacity disabled:cursor-default',
+                    input && input !== choice && 'opacity-30',
+                  )}
+                  disabled={!canEdit}
+                  onClick={() => onInputChange(choice)}
+                  type="button"
+                >
+                  {choice}
+                </button>
+              </span>
+            ))}
+            {choiceParts[1]}
+          </span>
+        )}
         {item.editableMode === 'full-input' && inputControl}
         {item.editableMode === 'suffix-input' && (
           <span className="flex min-w-0 items-baseline gap-2">
