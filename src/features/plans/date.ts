@@ -66,6 +66,13 @@ export function getWeekDates(date: string) {
   return eachDayOfInterval({ start, end }).map(toISODate)
 }
 
+export function getDateRange(startDate: string, endDate: string) {
+  return eachDayOfInterval({
+    start: parseISODate(startDate),
+    end: parseISODate(endDate),
+  }).map(toISODate)
+}
+
 export function getYearDates(date: string) {
   const parsedDate = parseISODate(date)
   return eachDayOfInterval({

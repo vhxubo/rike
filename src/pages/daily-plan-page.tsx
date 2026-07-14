@@ -40,7 +40,6 @@ import {
   addISODate,
   addISOMonth,
   addISOWeek,
-  addISOYear,
   getDayKind,
   getTodayISO,
   getWeekDates,
@@ -48,7 +47,6 @@ import {
 } from '@/features/plans/date'
 import {
   calculateStatisticsSummary,
-  type StatisticsRange,
 } from '@/features/plans/statistics'
 import { usePlanStore } from '@/features/plans/store'
 import type { StoreHydrationState } from '@/stores'
@@ -324,7 +322,6 @@ export function DailyPlanPage() {
   const [workspacePage, setWorkspacePage] = useState<WorkspacePage>('calendar')
   const [returnSnapshot, setReturnSnapshot] = useState<ReturnSnapshot | null>(null)
   const [pageAnchor, setPageAnchor] = useState(selectedDate)
-  const [statisticsRange, setStatisticsRange] = useState<StatisticsRange>('week')
   const [favorites, setFavorites] = useState<DailyGuidanceFavorite[]>(readFavorites)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const pageTurnRef = useRef<PageTurnHandle>(null)
@@ -404,7 +401,6 @@ export function DailyPlanPage() {
     saveReturnSnapshot()
     setPageAnchor(contextDate)
     if (destination === 'statistics') {
-      setStatisticsRange('week')
       setWorkspacePage('statistics')
       return
     }
@@ -419,30 +415,6 @@ export function DailyPlanPage() {
     setReturnSnapshot(null)
   }
 
-  const navigateStatistics = (amount: -1 | 1) => {
-    setPageAnchor((date) =>
-      clampDateToPeriod(
-        statisticsRange === 'week'
-          ? addISOWeek(date, amount)
-          : statisticsRange === 'month'
-            ? addISOMonth(date, amount)
-            : addISOYear(date, amount),
-        period,
-      ),
-    )
-  }
-
-  const canNavigateStatistics = (amount: -1 | 1) => {
-    if (statisticsRange === 'all') return false
-    const nextDate =
-      statisticsRange === 'week'
-        ? addISOWeek(pageAnchor, amount)
-        : statisticsRange === 'month'
-          ? addISOMonth(pageAnchor, amount)
-          : addISOYear(pageAnchor, amount)
-    return isDateInPeriod(nextDate, period)
-  }
-
   const isTodayContext =
     workspacePage === 'calendar'
       ? calendarView === 'day'
@@ -454,13 +426,7 @@ export function DailyPlanPage() {
         ? getWeekDates(pageAnchor).includes(today)
         : workspacePage === 'favorites' || workspacePage === 'fishing-wheel'
           ? true
-        : statisticsRange === 'all'
-          ? true
-          : statisticsRange === 'week'
-            ? getWeekDates(pageAnchor).includes(today)
-            : statisticsRange === 'month'
-              ? pageAnchor.slice(0, 7) === today.slice(0, 7)
-              : pageAnchor.slice(0, 4) === today.slice(0, 4)
+        : true
 
   const goToday = () => {
     if (workspacePage === 'calendar') setSelectedDate(today)
@@ -540,13 +506,7 @@ export function DailyPlanPage() {
           {workspacePage === 'statistics' && (
             <PaperSheet>
               <RuledSection className="pb-10 sm:pb-12">
-                <StatisticsPage
-                  anchorDate={pageAnchor}
-                  canNavigate={canNavigateStatistics}
-                  onNavigate={navigateStatistics}
-                  onRangeChange={setStatisticsRange}
-                  range={statisticsRange}
-                />
+                <StatisticsPage />
               </RuledSection>
             </PaperSheet>
           )}

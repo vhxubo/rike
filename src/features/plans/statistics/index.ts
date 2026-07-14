@@ -1,5 +1,6 @@
 import {
   compareISODates,
+  getDateRange,
   getDayKind,
   getMonthDates,
   getTodayISO,
@@ -16,6 +17,7 @@ import type {
 import { getItemDisplayStatus } from '@/features/plans/status'
 import { getWeekdayTemplate, isEffectiveWeekdayItem } from '@/features/plans/templates'
 import { isDateInPeriod, type SystemPeriod } from '@/features/system-config'
+import type { WheelSpinRecord } from '@/features/fishing-wheel/store'
 
 export interface WeekSummary {
   planCharacterCount: number
@@ -32,12 +34,49 @@ export interface StatisticsSummary extends WeekSummary {
   completionRate: number
   startDate: string
   endDate: string
+  perfectWeeks: number
+  missedByWeek: Array<{ label: string; value: number }>
+}
+
+export interface WheelStatistics {
+  spins: number
+  wins: number
+  luckIndex: number
+  prizes: Array<{ label: string; value: number }>
 }
 
 const subjects: Subject[] = ['语文', '英语', '数学', '化学', '生物', '物理']
+const prizeChance: Record<string, number> = {
+  saturday: 0.5,
+  workweek: 0.001,
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`task-${index + 1}`, 1])),
+  ...Object.fromEntries(Array.from({ length: 5 }, (_, index) => [`weekday-${index + 1}`, 0.1])),
+}
 
 export function countCharacters(value: string) {
   return Array.from(value.replace(/\s/g, '')).length
+}
+
+export function calculateWheelStatistics(
+  spins: WheelSpinRecord[],
+  startDate: string,
+  endDate: string,
+): WheelStatistics {
+  const visible = spins.filter((spin) => spin.spinDate >= startDate && spin.spinDate <= endDate)
+  const wins = visible.filter((spin) => spin.prizeId !== 'none')
+  const prizes = new Map<string, number>()
+  for (const spin of wins) prizes.set(spin.title, (prizes.get(spin.title) ?? 0) + 1)
+  const winRateScore = visible.length ? Math.min(1, wins.length / visible.length / 0.09001) : 0
+  const rarityScore = wins.length
+    ? wins.reduce((total, spin) => total + Math.min(1, 0.1 / (prizeChance[spin.prizeId] ?? 1)), 0) / wins.length
+    : 0
+
+  return {
+    spins: visible.length,
+    wins: wins.length,
+    luckIndex: Math.round((winRateScore + rarityScore) * 50),
+    prizes: [...prizes].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value),
+  }
 }
 
 function emptySubjectCounts(): Record<Subject, number> {
@@ -77,7 +116,9 @@ function getStatisticsDates(
   if (range === 'week') dates = getWeekDates(anchorDate)
   else if (range === 'month') dates = getMonthDates(anchorDate)
   else if (range === 'year') dates = getYearDates(anchorDate)
-  else {
+  else if (period) {
+    dates = getDateRange(period.startDate, period.endDate)
+  } else {
     dates = Object.keys(records)
       .filter((date) =>
         compareISODates(date, asOfDate) <= 0 && (!period || isDateInPeriod(date, period)),
@@ -108,9 +149,16 @@ export function calculateStatisticsSummary(
     completionRate: 0,
     startDate: dates[0] ?? asOfDate,
     endDate: dates.at(-1) ?? asOfDate,
+    perfectWeeks: 0,
+    missedByWeek: [],
   }
+  const weeks = new Map<string, { endDate: string; missed: number }>()
 
   for (const date of dates) {
+    const weekDates = getWeekDates(date).filter((day) => !period || isDateInPeriod(day, period))
+    const weekStart = weekDates[0]
+    const week = weeks.get(weekStart) ?? { endDate: weekDates.at(-1) ?? date, missed: 0 }
+    weeks.set(weekStart, week)
     const kind = getDayKind(date)
     const record = records[date]
 
@@ -139,6 +187,7 @@ export function calculateStatisticsSummary(
 
         if (status === 'missed') {
           summary.missedPlans += 1
+          week.missed += 1
           if (item.subject) summary.missedBySubject[item.subject] += 1
         }
       }
@@ -155,7 +204,10 @@ export function calculateStatisticsSummary(
 
         const status = getItemDisplayStatus(date, item.resolution, asOfDate)
         if (status === 'completed') summary.completedPlans += 1
-        if (status === 'missed') summary.missedPlans += 1
+        if (status === 'missed') {
+          summary.missedPlans += 1
+          week.missed += 1
+        }
       }
     }
   }
@@ -164,6 +216,13 @@ export function calculateStatisticsSummary(
   summary.completionRate = resolvedPlans
     ? Math.round((summary.completedPlans / resolvedPlans) * 100)
     : 0
+  summary.missedByWeek = [...weeks].map(([startDate, week]) => ({
+    label: `${startDate.slice(5)}—${week.endDate.slice(5)}`,
+    value: week.missed,
+  }))
+  summary.perfectWeeks = [...weeks.values()].filter(
+    (week) => compareISODates(week.endDate, asOfDate) <= 0 && week.missed === 0,
+  ).length
 
   return summary
 }
