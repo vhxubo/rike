@@ -37,7 +37,7 @@ export function applyTheme(
   root.dataset.themePreference = preference
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute(
     'content',
-    resolved === 'dark' ? '#171a18' : '#e8ece7',
+    resolved === 'dark' ? '#272824' : '#fffdf7',
   )
   return resolved
 }
