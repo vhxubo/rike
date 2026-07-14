@@ -1,5 +1,6 @@
 import { getDayKind, getTodayISO, getWeekDates } from '@/features/plans/date'
 import type {
+  DayOverview,
   ItemResolution,
   PlanRecords,
   Subject,
@@ -96,4 +97,51 @@ export function calculateWeekSummary(
   }
 
   return summary
+}
+
+export function calculateDayOverview(
+  date: string,
+  records: PlanRecords,
+  asOfDate = getTodayISO(),
+): DayOverview {
+  const overview: DayOverview = {
+    totalPlans: 0,
+    completedPlans: 0,
+    missedPlans: 0,
+    status: 'empty',
+  }
+  const kind = getDayKind(date)
+  const record = records[date]
+  const resolutions: ItemResolution[] = []
+
+  if (kind === 'weekday') {
+    const weekdayRecord = record?.kind === 'weekday' ? record : undefined
+
+    for (const item of getWeekdayTemplate(date)) {
+      const input = weekdayRecord?.inputs[item.id] ?? ''
+      if (!isEffectiveWeekdayItem(item, input)) continue
+      resolutions.push(weekdayRecord?.resolutions[item.id] ?? null)
+    }
+  }
+
+  if (kind === 'saturday' && record?.kind === 'saturday') {
+    for (const item of record.items) {
+      if (item.text.trim()) resolutions.push(item.resolution)
+    }
+  }
+
+  for (const resolution of resolutions) {
+    overview.totalPlans += 1
+    const status = getItemDisplayStatus(date, resolution, asOfDate)
+    if (status === 'completed') overview.completedPlans += 1
+    if (status === 'missed') overview.missedPlans += 1
+  }
+
+  if (overview.totalPlans === 0) return overview
+  if (overview.missedPlans > 0) overview.status = 'missed'
+  else if (overview.completedPlans === overview.totalPlans) overview.status = 'completed'
+  else if (date > asOfDate) overview.status = 'upcoming'
+  else overview.status = 'pending'
+
+  return overview
 }

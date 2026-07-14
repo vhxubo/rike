@@ -1,7 +1,14 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { addISODate, getDayKind, getTodayISO } from '@/features/plans/date'
+import type { CalendarView } from '@/features/calendar'
+import {
+  addISODate,
+  addISOWeek,
+  addISOYear,
+  getDayKind,
+  getTodayISO,
+} from '@/features/plans/date'
 import type {
   DayPlanRecord,
   ItemResolution,
@@ -18,17 +25,21 @@ import {
 } from '@/features/plans/store/storage'
 import type { StoreHydrationState } from '@/stores'
 
-const PLAN_STORE_VERSION = 1
+const PLAN_STORE_VERSION = 2
 
-interface PlanPersistedState {
+export interface PlanPersistedState {
   selectedDate: string
+  calendarView: CalendarView
   records: PlanRecords
 }
 
 interface PlanStore extends PlanPersistedState {
   hydrationState: StoreHydrationState
   setSelectedDate: (date: string) => void
+  setCalendarView: (view: CalendarView) => void
+  openDateInDayView: (date: string) => void
   navigateDate: (amount: number) => void
+  navigateRange: (amount: number) => void
   setWeekdayInput: (date: string, itemId: string, value: string) => void
   setJournal: (date: string, value: string) => void
   toggleWeekdayResolution: (date: string, itemId: string) => void
@@ -37,6 +48,25 @@ interface PlanStore extends PlanPersistedState {
   removeSaturdayItem: (date: string, itemId: string) => string | null
   setSaturdayItemText: (date: string, itemId: string, value: string) => void
   toggleSaturdayResolution: (date: string, itemId: string) => void
+}
+
+function isCalendarView(value: unknown): value is CalendarView {
+  return value === 'day' || value === 'week' || value === 'year'
+}
+
+export function migratePlanPersistedState(persistedState: unknown): PlanPersistedState {
+  const candidate =
+    persistedState && typeof persistedState === 'object'
+      ? (persistedState as Partial<PlanPersistedState>)
+      : {}
+
+  return {
+    selectedDate:
+      typeof candidate.selectedDate === 'string' ? candidate.selectedDate : getTodayISO(),
+    calendarView: isCalendarView(candidate.calendarView) ? candidate.calendarView : 'day',
+    records:
+      candidate.records && typeof candidate.records === 'object' ? candidate.records : {},
+  }
 }
 
 function createWeekdayRecord(date: string): WeekdayDayRecord {
@@ -78,6 +108,7 @@ export const usePlanStore = create<PlanStore>()(
   persist(
     (set, get) => ({
       selectedDate: getTodayISO(),
+      calendarView: 'day',
       records: {},
       hydrationState: 'hydrating',
 
@@ -85,8 +116,27 @@ export const usePlanStore = create<PlanStore>()(
         set({ selectedDate: date })
       },
 
+      setCalendarView(calendarView) {
+        set({ calendarView })
+      },
+
+      openDateInDayView(date) {
+        set({ selectedDate: date, calendarView: 'day' })
+      },
+
       navigateDate(amount) {
         set((state) => ({ selectedDate: addISODate(state.selectedDate, amount) }))
+      },
+
+      navigateRange(amount) {
+        set((state) => ({
+          selectedDate:
+            state.calendarView === 'day'
+              ? addISODate(state.selectedDate, amount)
+              : state.calendarView === 'week'
+                ? addISOWeek(state.selectedDate, amount)
+                : addISOYear(state.selectedDate, amount),
+        }))
       },
 
       setWeekdayInput(date, itemId, value) {
@@ -241,7 +291,13 @@ export const usePlanStore = create<PlanStore>()(
       storage: createJSONStorage(() => planStateStorage),
       partialize: (state): PlanPersistedState => ({
         selectedDate: state.selectedDate,
+        calendarView: state.calendarView,
         records: state.records,
+      }),
+      migrate: (persistedState) => migratePlanPersistedState(persistedState),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...migratePlanPersistedState(persistedState),
       }),
       onRehydrateStorage: () => (_state, error) => {
         setPlanStorageWritesBlocked(Boolean(error))

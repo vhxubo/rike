@@ -2,32 +2,55 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/icon-button'
-import { formatCompactDate, formatDisplayDate, formatWeekday, getTodayISO } from '@/features/plans/date'
+import type { CalendarView } from '@/features/calendar'
+import {
+  formatCompactDate,
+  formatDisplayDate,
+  formatWeekday,
+  formatYear,
+  getTodayISO,
+  getWeekDates,
+} from '@/features/plans/date'
 
 interface DateNavigatorProps {
   date: string
   onNext: () => void
   onPrevious: () => void
+  view?: CalendarView
 }
 
-export function DateNavigator({ date, onNext, onPrevious }: DateNavigatorProps) {
+const labels: Record<CalendarView, { previous: string; next: string }> = {
+  day: { previous: '前一天', next: '后一天' },
+  week: { previous: '上一周', next: '下一周' },
+  year: { previous: '上一年', next: '下一年' },
+}
+
+export function DateNavigator({ date, onNext, onPrevious, view = 'day' }: DateNavigatorProps) {
   const isToday = date === getTodayISO()
+  const weekDates = getWeekDates(date)
+  const compactLabel =
+    view === 'day'
+      ? formatCompactDate(date)
+      : view === 'week'
+        ? `${weekDates[0]} — ${weekDates[6]}`
+        : formatYear(date)
+  const title = view === 'day' ? formatWeekday(date) : view === 'week' ? '本周计划' : '年度计划'
 
   return (
     <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-3" aria-live="polite">
-      <IconButton label="前一天" onClick={onPrevious} variant="ghost">
+      <IconButton label={labels[view].previous} onClick={onPrevious} variant="ghost">
         <ChevronLeft aria-hidden="true" size={22} />
       </IconButton>
 
       <div className="min-w-0 text-center" title={formatDisplayDate(date)}>
         <div className="flex min-h-6 items-center justify-center gap-2">
-          <span className="font-data text-xs text-graphite">{formatCompactDate(date)}</span>
+          <span className="font-data text-xs text-graphite">{compactLabel}</span>
           {isToday && <Badge tone="accent">今天</Badge>}
         </div>
-        <p className="mt-1 font-display text-2xl font-semibold text-ink">{formatWeekday(date)}</p>
+        <p className="mt-1 font-display text-2xl font-semibold text-ink">{title}</p>
       </div>
 
-      <IconButton label="后一天" onClick={onNext} variant="ghost">
+      <IconButton label={labels[view].next} onClick={onNext} variant="ghost">
         <ChevronRight aria-hidden="true" size={22} />
       </IconButton>
     </div>

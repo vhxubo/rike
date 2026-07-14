@@ -6,6 +6,7 @@ describe('plan store', () => {
     vi.setSystemTime(new Date('2026-07-14T08:00:00+08:00'))
     usePlanStore.setState({
       selectedDate: '2026-07-14',
+      calendarView: 'day',
       records: {},
       hydrationState: 'ready',
     })
@@ -74,6 +75,28 @@ describe('plan store', () => {
     expect(focusId).toBe(firstId)
     expect(usePlanStore.getState().records['2026-07-18']).toMatchObject({
       items: [{ id: firstId }],
+    })
+  })
+
+  it('navigates by the active view range', () => {
+    const store = usePlanStore.getState()
+
+    store.setCalendarView('week')
+    usePlanStore.getState().navigateRange(1)
+    expect(usePlanStore.getState().selectedDate).toBe('2026-07-21')
+
+    usePlanStore.getState().setCalendarView('year')
+    usePlanStore.getState().navigateRange(-1)
+    expect(usePlanStore.getState().selectedDate).toBe('2025-07-21')
+  })
+
+  it('opens a calendar date atomically in day view', () => {
+    usePlanStore.setState({ calendarView: 'year' })
+    usePlanStore.getState().openDateInDayView('2026-12-20')
+
+    expect(usePlanStore.getState()).toMatchObject({
+      selectedDate: '2026-12-20',
+      calendarView: 'day',
     })
   })
 })

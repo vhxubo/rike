@@ -8,6 +8,15 @@ export type ItemResolution = 'completed' | 'missed' | null
 
 export type ItemDisplayStatus = 'upcoming' | 'pending' | 'completed' | 'missed'
 
+export type DayOverviewStatus = 'empty' | ItemDisplayStatus
+
+export interface DayOverview {
+  totalPlans: number
+  completedPlans: number
+  missedPlans: number
+  status: DayOverviewStatus
+}
+
 export interface PlanTemplateItem {
   id: string
   order: number

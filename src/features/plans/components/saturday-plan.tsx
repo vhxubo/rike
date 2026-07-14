@@ -10,6 +10,7 @@ import { usePlanStore } from '@/features/plans/store'
 
 interface SaturdayPlanProps {
   date: string
+  initialize?: boolean
 }
 
 function saturdayTemplate(order: number): PlanTemplateItem {
@@ -22,7 +23,7 @@ function saturdayTemplate(order: number): PlanTemplateItem {
   }
 }
 
-export function SaturdayPlan({ date }: SaturdayPlanProps) {
+export function SaturdayPlan({ date, initialize = true }: SaturdayPlanProps) {
   const record = usePlanStore((state) => {
     const candidate = state.records[date]
     return candidate?.kind === 'saturday' ? candidate : undefined
@@ -38,8 +39,8 @@ export function SaturdayPlan({ date }: SaturdayPlanProps) {
   const editable = canEditPlan(date, today)
 
   useEffect(() => {
-    if (editable) ensureSaturday(date)
-  }, [date, editable, ensureSaturday])
+    if (editable && initialize) ensureSaturday(date)
+  }, [date, editable, ensureSaturday, initialize])
 
   useEffect(() => {
     if (!focusId) return

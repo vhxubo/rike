@@ -1,4 +1,10 @@
-import { canStartDateSwipe, getDateSwipeAmount } from '@/features/plans/gestures'
+import {
+  canStartDateSwipe,
+  getDateSwipeAmount,
+  getPinchZoomDirection,
+  getWheelZoomDirection,
+  getZoomedView,
+} from '@/features/plans/gestures'
 
 describe('date swipe intent', () => {
   it('maps sufficient horizontal movement or velocity to a date change', () => {
@@ -18,5 +24,23 @@ describe('date swipe intent', () => {
     expect(canStartDateSwipe(surface)).toBe(true)
     expect(canStartDateSwipe(input)).toBe(false)
     expect(canStartDateSwipe(button)).toBe(false)
+  })
+})
+
+describe('calendar zoom intent', () => {
+  it('moves one view level without wrapping', () => {
+    expect(getZoomedView('day', 'out')).toBe('week')
+    expect(getZoomedView('week', 'out')).toBe('year')
+    expect(getZoomedView('year', 'out')).toBe('year')
+    expect(getZoomedView('year', 'in')).toBe('week')
+    expect(getZoomedView('day', 'in')).toBe('day')
+  })
+
+  it('recognizes pinch and trackpad directions after a threshold', () => {
+    expect(getPinchZoomDirection(100, 150)).toBe('in')
+    expect(getPinchZoomDirection(100, 50)).toBe('out')
+    expect(getPinchZoomDirection(100, 120)).toBeNull()
+    expect(getWheelZoomDirection(-70)).toBe('in')
+    expect(getWheelZoomDirection(70)).toBe('out')
   })
 })

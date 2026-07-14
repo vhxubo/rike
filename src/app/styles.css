@@ -31,6 +31,16 @@
 
 * {
   box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+[data-allow-selection] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 html {
@@ -60,6 +70,17 @@ button,
 ::selection {
   color: var(--color-ink);
   background: var(--color-cinnabar-soft);
+}
+
+.page-turn-surface {
+  perspective: 1800px;
+  touch-action: pan-y;
+}
+
+.page-turn-sheet {
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform, filter;
 }
 
 :focus-visible {

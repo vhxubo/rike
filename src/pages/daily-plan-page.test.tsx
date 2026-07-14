@@ -10,6 +10,7 @@ describe('DailyPlanPage', () => {
     vi.setSystemTime(new Date('2026-07-14T08:00:00+08:00'))
     usePlanStore.setState({
       selectedDate: '2026-07-14',
+      calendarView: 'day',
       records: {},
       hydrationState: 'ready',
     })
@@ -30,5 +31,18 @@ describe('DailyPlanPage', () => {
       expect(usePlanStore.getState().selectedDate).toBe('2026-07-15')
     })
     expect(await screen.findByText('语文点线面')).toBeInTheDocument()
+  })
+
+  it('switches between day, week, and year views with visible controls', async () => {
+    const user = userEvent.setup()
+    render(<DailyPlanPage />)
+
+    await user.click(screen.getByRole('button', { name: '周' }))
+    expect(usePlanStore.getState().calendarView).toBe('week')
+    expect(await screen.findByLabelText('本周七日概览')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '年' }))
+    expect(usePlanStore.getState().calendarView).toBe('year')
+    expect(await screen.findByLabelText('2026年日历')).toBeInTheDocument()
   })
 })
