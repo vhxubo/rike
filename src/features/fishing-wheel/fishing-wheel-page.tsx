@@ -12,6 +12,7 @@ import {
   type WheelExemptionTarget,
   type WheelSpinRecord,
 } from '@/features/fishing-wheel/store'
+import { readSystemConfig } from '@/features/system-config'
 import {
   addISODate,
   addISOWeek,
@@ -133,7 +134,16 @@ function getPlanText(item: PlanTemplateItem, input: string) {
   return `${item.prefix}${input}${item.suffix ?? ''}`
 }
 
-function countCompletedPapers(records: PlanRecords, spins: WheelSpinRecord[]) {
+function isWithinPeriod(date: string, startDate: string, endDate: string) {
+  return date >= startDate && date <= endDate
+}
+
+function countCompletedPapers(
+  records: PlanRecords,
+  spins: WheelSpinRecord[],
+  startDate: string,
+  endDate: string,
+) {
   const exemptedItems = new Set<string>()
   for (const spin of spins) {
     if (!spin.applied) continue
@@ -145,6 +155,7 @@ function countCompletedPapers(records: PlanRecords, spins: WheelSpinRecord[]) {
 
   let count = 0
   for (const [date, record] of Object.entries(records)) {
+    if (!isWithinPeriod(date, startDate, endDate)) continue
     if (record.kind === 'weekday') {
       for (const item of getWeekdayTemplate(date)) {
         if (record.resolutions[item.id] !== 'completed') continue
@@ -159,7 +170,6 @@ function countCompletedPapers(records: PlanRecords, spins: WheelSpinRecord[]) {
       if (item.text.includes('试卷')) count += 1
     }
   }
-  // ponytail: no holiday calendar exists; this local lifetime cap can be reset when holidays become explicit.
   return Math.min(3, count)
 }
 
@@ -177,6 +187,7 @@ function formatTargets(targets: WheelExemptionTarget[]) {
 }
 
 export function FishingWheelPage() {
+  const [{ period }] = useState(readSystemConfig)
   const records = usePlanStore((state) => state.records)
   const hydrationState = usePlanStore((state) => state.hydrationState)
   const applyWheelExemptions = usePlanStore((state) => state.applyWheelExemptions)
@@ -209,15 +220,18 @@ export function FishingWheelPage() {
   const nextWorkday = getNextWorkday(today)
   const sixthTaskBlank = isSixthTaskBlank(nextWorkday, records)
   const prizeDefinitions = useMemo(() => getPrizeDefinitions(sixthTaskBlank), [sixthTaskBlank])
-  const paperRewardsEarned = countCompletedPapers(records, spins)
-  const paperRewardsUsed = spins.filter((spin) => spin.source === 'paper').length
+  const periodActive = isWithinPeriod(today, period.startDate, period.endDate)
+  const paperRewardsEarned = countCompletedPapers(records, spins, period.startDate, period.endDate)
+  const paperRewardsUsed = spins.filter(
+    (spin) => spin.source === 'paper' && isWithinPeriod(spin.spinDate, period.startDate, period.endDate),
+  ).length
   const paperRewardsAvailable = Math.max(0, paperRewardsEarned - paperRewardsUsed)
   const dailySpinUsed = spins.some((spin) => spin.source === 'daily' && spin.spinDate === today)
   const todaySpinsUsed = spins.filter((spin) => spin.spinDate === today).length
-  const remainingSpins = (dailySpinUsed ? 0 : 1) + paperRewardsAvailable
+  const remainingSpins = periodActive ? (dailySpinUsed ? 0 : 1) + paperRewardsAvailable : 0
   const todaySpinsTotal = todaySpinsUsed + remainingSpins
   const latestSpin = spins.at(-1)
-  const wheelReady = hydrationState !== 'hydrating'
+  const wheelReady = hydrationState !== 'hydrating' && periodActive
 
   const canvasPrizes = useMemo(() => prizeDefinitions.map((prize, index) => ({
     background: WHEEL_COLORS[index % WHEEL_COLORS.length],
@@ -304,7 +318,7 @@ export function FishingWheelPage() {
                   fontColor: '#fffdf7',
                   fontSize: '17px',
                   fontWeight: '700',
-                  text: !wheelReady ? '整理中' : spinning ? '转动中' : remainingSpins ? '摸鱼\n开转' : '明日\n再来',
+                  text: !periodActive ? '假期外' : !wheelReady ? '整理中' : spinning ? '转动中' : remainingSpins ? '摸鱼\n开转' : '明日\n再来',
                   top: '-18px',
                 }],
                 pointer: true,
