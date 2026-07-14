@@ -24,6 +24,16 @@ function isSystemPeriod(value: unknown): value is SystemPeriod {
     period.startDate <= period.endDate
 }
 
+export function isDateInPeriod(date: string, period: SystemPeriod) {
+  return date >= period.startDate && date <= period.endDate
+}
+
+export function clampDateToPeriod(date: string, period: SystemPeriod) {
+  if (date < period.startDate) return period.startDate
+  if (date > period.endDate) return period.endDate
+  return date
+}
+
 export function readSystemConfig(storage: Pick<Storage, 'getItem' | 'setItem'> = localStorage) {
   try {
     const parsed: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')

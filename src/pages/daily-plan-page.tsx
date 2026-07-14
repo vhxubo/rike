@@ -22,11 +22,16 @@ import {
 } from '@/features/calendar/components'
 import { useCalendarZoom } from '@/features/calendar/use-calendar-zoom'
 import {
-  SAMPLE_DAILY_GUIDANCE,
+  getDailyGuidance,
   type DailyGuidance,
   type DailyGuidanceFavorite,
 } from '@/features/daily-guidance'
 import { FishingWheelPage } from '@/features/fishing-wheel/fishing-wheel-page'
+import {
+  clampDateToPeriod,
+  isDateInPeriod,
+  readSystemConfig,
+} from '@/features/system-config'
 import { DateNavigator } from '@/features/plans/components/date-navigator'
 import { SaturdayPlan } from '@/features/plans/components/saturday-plan'
 import { SundaySummary } from '@/features/plans/components/sunday-summary'
@@ -77,7 +82,6 @@ function readFavorites(): DailyGuidanceFavorite[] {
 
 function DailyGuidanceCard({
   copied,
-  date,
   guidance,
   interactive,
   isFavorite,
@@ -85,14 +89,13 @@ function DailyGuidanceCard({
   onToggleFavorite,
 }: {
   copied: boolean
-  date: string
   guidance: DailyGuidance
   interactive: boolean
   isFavorite: boolean
   onCopy: (text: string, key: string) => void
   onToggleFavorite: (date: string, guidance: DailyGuidance) => void
 }) {
-  const key = favoriteKey(date, guidance.id)
+  const key = favoriteKey(guidance.date, guidance.id)
 
   return (
     <blockquote className="flex items-start gap-3 border-l border-cinnabar/45 bg-paper/90 py-2 pl-4 sm:mx-auto sm:max-w-2xl">
@@ -113,8 +116,9 @@ function DailyGuidanceCard({
         {interactive && (
           <IconButton
             aria-pressed={isFavorite}
+            className={isFavorite ? 'daily-guidance-heart !text-cinnabar' : 'text-graphite hover:!text-cinnabar'}
             label={isFavorite ? '取消收藏每日一句' : '收藏每日一句'}
-            onClick={() => onToggleFavorite(date, guidance)}
+            onClick={() => onToggleFavorite(guidance.date, guidance)}
             variant="ghost"
           >
             <Heart
@@ -209,8 +213,10 @@ function getAdjacentDate(date: string, view: CalendarView, amount: -1 | 1) {
 }
 
 function CalendarPage({
+  canNavigate,
   date,
   favorites,
+  guidance,
   hydrationState,
   interactive = true,
   onNavigate,
@@ -219,8 +225,10 @@ function CalendarPage({
   copiedKey,
   view,
 }: {
+  canNavigate: (amount: -1 | 1) => boolean
   date: string
   favorites: DailyGuidanceFavorite[]
+  guidance: DailyGuidance
   hydrationState: StoreHydrationState
   interactive?: boolean
   onNavigate: (amount: -1 | 1) => void
@@ -230,24 +238,29 @@ function CalendarPage({
   view: CalendarView
 }) {
   const reduceMotion = useReducedMotion()
-  const guidance = SAMPLE_DAILY_GUIDANCE[Number(date.slice(-2)) % SAMPLE_DAILY_GUIDANCE.length]
 
   return (
     <PaperSheet>
       <RuledSection className="border-b border-line py-4">
         <DailyGuidanceCard
-          copied={copiedKey === favoriteKey(date, guidance.id)}
-          date={date}
+          copied={copiedKey === favoriteKey(guidance.date, guidance.id)}
           guidance={guidance}
           interactive={interactive}
-          isFavorite={favorites.some((favorite) => favoriteKey(favorite.date, favorite.guidanceId) === favoriteKey(date, guidance.id))}
+          isFavorite={favorites.some((favorite) => favoriteKey(favorite.date, favorite.guidanceId) === favoriteKey(guidance.date, guidance.id))}
           onCopy={onCopy}
           onToggleFavorite={onToggleFavorite}
         />
       </RuledSection>
 
       <RuledSection className="border-b border-line py-5">
-        <DateNavigator date={date} onNext={() => onNavigate(1)} onPrevious={() => onNavigate(-1)} view={view} />
+        <DateNavigator
+          canGoNext={canNavigate(1)}
+          canGoPrevious={canNavigate(-1)}
+          date={date}
+          onNext={() => onNavigate(1)}
+          onPrevious={() => onNavigate(-1)}
+          view={view}
+        />
       </RuledSection>
 
       <RuledSection className="overflow-visible pb-10 sm:pb-12">
@@ -281,16 +294,18 @@ function CalendarPage({
 }
 
 function WeekSummaryPage({ anchorDate }: { anchorDate: string }) {
+  const [{ period }] = useState(readSystemConfig)
   const records = usePlanStore((state) => state.records)
   const today = getTodayISO()
   const weekDates = getWeekDates(anchorDate)
-  const summary = calculateStatisticsSummary('week', anchorDate, records, today)
+  const visibleWeekDates = weekDates.filter((date) => isDateInPeriod(date, period))
+  const summary = calculateStatisticsSummary('week', anchorDate, records, today, period)
 
   return (
     <PaperSheet>
       <RuledSection className="pb-10 sm:pb-12">
         <header className="mb-8 text-center">
-          <p className="font-data text-xs text-cinnabar">{weekDates[0]} — {weekDates[6]}</p>
+          <p className="font-data text-xs text-cinnabar">{visibleWeekDates[0]} — {visibleWeekDates.at(-1)}</p>
           <h1 className="mt-2 font-display text-3xl font-semibold">本周总结</h1>
         </header>
         <StatisticsPanel summary={summary} />
@@ -300,6 +315,7 @@ function WeekSummaryPage({ anchorDate }: { anchorDate: string }) {
 }
 
 export function DailyPlanPage() {
+  const [{ period }] = useState(readSystemConfig)
   const selectedDate = usePlanStore((state) => state.selectedDate)
   const calendarView = usePlanStore((state) => state.calendarView)
   const hydrationState = usePlanStore((state) => state.hydrationState)
@@ -316,10 +332,20 @@ export function DailyPlanPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const pageTurnRef = useRef<PageTurnHandle>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
-  const today = getTodayISO()
+  const [today, setToday] = useState(getTodayISO)
   const contextDate = workspacePage === 'calendar' ? selectedDate : pageAnchor
   const isCanonicalTodayDay =
     workspacePage === 'calendar' && calendarView === 'day' && selectedDate === today
+
+  useEffect(() => {
+    const now = new Date()
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const timer = window.setTimeout(
+      () => setToday(getTodayISO()),
+      midnight.getTime() - now.getTime() + 100,
+    )
+    return () => window.clearTimeout(timer)
+  }, [today])
 
   useEffect(() => {
     try {
@@ -398,12 +424,26 @@ export function DailyPlanPage() {
 
   const navigateStatistics = (amount: -1 | 1) => {
     setPageAnchor((date) =>
-      statisticsRange === 'week'
-        ? addISOWeek(date, amount)
-        : statisticsRange === 'month'
-          ? addISOMonth(date, amount)
-          : addISOYear(date, amount),
+      clampDateToPeriod(
+        statisticsRange === 'week'
+          ? addISOWeek(date, amount)
+          : statisticsRange === 'month'
+            ? addISOMonth(date, amount)
+            : addISOYear(date, amount),
+        period,
+      ),
     )
+  }
+
+  const canNavigateStatistics = (amount: -1 | 1) => {
+    if (statisticsRange === 'all') return false
+    const nextDate =
+      statisticsRange === 'week'
+        ? addISOWeek(pageAnchor, amount)
+        : statisticsRange === 'month'
+          ? addISOMonth(pageAnchor, amount)
+          : addISOYear(pageAnchor, amount)
+    return isDateInPeriod(nextDate, period)
   }
 
   const isTodayContext =
@@ -427,7 +467,7 @@ export function DailyPlanPage() {
 
   const goToday = () => {
     if (workspacePage === 'calendar') setSelectedDate(today)
-    else setPageAnchor(today)
+    else setPageAnchor(clampDateToPeriod(today, period))
   }
 
   useEffect(() => {
@@ -438,10 +478,15 @@ export function DailyPlanPage() {
     }
   }, [isCanonicalTodayDay, returnSnapshot])
 
+  const canNavigateCalendar = (date: string, amount: -1 | 1) =>
+    isDateInPeriod(getAdjacentDate(date, calendarView, amount), period)
+
   const renderCalendarPage = (date: string, interactive: boolean) => (
     <CalendarPage
+      canNavigate={(amount) => canNavigateCalendar(date, amount)}
       date={date}
       favorites={favorites}
+      guidance={getDailyGuidance(today)}
       hydrationState={hydrationState}
       interactive={interactive}
       onNavigate={(amount) => interactive && pageTurnRef.current?.turn(amount)}
@@ -462,7 +507,7 @@ export function DailyPlanPage() {
       visibleDate,
       records[visibleDate] ?? null,
     ])
-    return `${calendarView}:${date}:${hydrationState}:${JSON.stringify(contentRevision)}`
+    return `${calendarView}:${date}:${getDailyGuidance(today).id}:${hydrationState}:${JSON.stringify(contentRevision)}`
   }
 
   return (
@@ -477,13 +522,27 @@ export function DailyPlanPage() {
         {workspacePage === 'calendar' && (
           <PageTurn
             adjacentKeys={{
-              previous: pageTextureKey(getAdjacentDate(selectedDate, calendarView, -1)),
-              next: pageTextureKey(getAdjacentDate(selectedDate, calendarView, 1)),
+              previous: pageTextureKey(
+                canNavigateCalendar(selectedDate, -1)
+                  ? getAdjacentDate(selectedDate, calendarView, -1)
+                  : selectedDate,
+              ),
+              next: pageTextureKey(
+                canNavigateCalendar(selectedDate, 1)
+                  ? getAdjacentDate(selectedDate, calendarView, 1)
+                  : selectedDate,
+              ),
             }}
+            canTurn={(amount) => canNavigateCalendar(selectedDate, amount)}
             currentKey={pageTextureKey(selectedDate)}
             onTurn={navigateRange}
             ref={pageTurnRef}
-            renderAdjacent={(amount) => renderCalendarPage(getAdjacentDate(selectedDate, calendarView, amount), false)}
+            renderAdjacent={(amount) => renderCalendarPage(
+              canNavigateCalendar(selectedDate, amount)
+                ? getAdjacentDate(selectedDate, calendarView, amount)
+                : selectedDate,
+              false,
+            )}
           >
             {renderCalendarPage(selectedDate, true)}
           </PageTurn>
@@ -509,6 +568,7 @@ export function DailyPlanPage() {
             <RuledSection className="pb-10 sm:pb-12">
               <StatisticsPage
                 anchorDate={pageAnchor}
+                canNavigate={canNavigateStatistics}
                 onNavigate={navigateStatistics}
                 onRangeChange={setStatisticsRange}
                 range={statisticsRange}
@@ -517,7 +577,7 @@ export function DailyPlanPage() {
           </PaperSheet>
         )}
       </div>
-      {!isTodayContext && <TodayFab onToday={goToday} />}
+      {!isTodayContext && isDateInPeriod(today, period) && <TodayFab onToday={goToday} />}
     </AppShell>
   )
 }

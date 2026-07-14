@@ -38,7 +38,9 @@ export function isWheelDayExempted(spins: WheelSpinRecord[], date: string) {
 }
 
 interface FishingWheelStore {
+  paperRewardCount: number
   spins: WheelSpinRecord[]
+  claimPaperReward: () => void
   markApplied: (id: string) => void
   recordSpin: (spin: WheelSpinRecord) => void
 }
@@ -72,7 +74,13 @@ function isWheelSpinRecord(value: unknown): value is WheelSpinRecord {
 export const useFishingWheelStore = create<FishingWheelStore>()(
   persist(
     (set) => ({
+      paperRewardCount: 0,
       spins: [],
+      claimPaperReward() {
+        set((state) => state.paperRewardCount < 3
+          ? { paperRewardCount: state.paperRewardCount + 1 }
+          : state)
+      },
       markApplied(id) {
         set((state) => ({
           spins: state.spins.map((spin) => spin.id === id ? { ...spin, applied: true } : spin),
@@ -85,12 +93,25 @@ export const useFishingWheelStore = create<FishingWheelStore>()(
     {
       name: 'rike-fishing-wheel',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ spins: state.spins }),
+      partialize: (state) => ({
+        paperRewardCount: state.paperRewardCount,
+        spins: state.spins,
+      }),
       merge: (persisted, current) => ({
         ...current,
         spins: Array.isArray((persisted as Partial<FishingWheelStore> | undefined)?.spins)
           ? (persisted as Partial<FishingWheelStore>).spins?.filter(isWheelSpinRecord) ?? []
           : [],
+        paperRewardCount: Math.min(
+          3,
+          Math.max(
+            0,
+            Number((persisted as Partial<FishingWheelStore> | undefined)?.paperRewardCount) ||
+              ((persisted as Partial<FishingWheelStore> | undefined)?.spins?.filter(
+                (spin) => isWheelSpinRecord(spin) && spin.source === 'paper',
+              ).length ?? 0),
+          ),
+        ),
       }),
     },
   ),

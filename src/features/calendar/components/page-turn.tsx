@@ -21,6 +21,7 @@ export interface PageTurnHandle {
 
 interface PageTurnProps {
   adjacentKeys: { previous: string; next: string }
+  canTurn?: (amount: -1 | 1) => boolean
   children: ReactNode
   className?: string
   currentKey: string
@@ -47,6 +48,7 @@ function pageElement(wrapper: HTMLDivElement | null) {
 export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageTurn(
   {
     adjacentKeys,
+    canTurn = () => true,
     children,
     className,
     currentKey,
@@ -283,7 +285,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   }
 
   const finishTurn = (amount: -1 | 1, preservePointer = false) => {
-    if (busy) return
+    if (busy || !canTurn(amount)) return
     if (!preservePointer) {
       pointerY.set(0.6)
       foldCornerY.current = 1
@@ -368,6 +370,10 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       }
       current.active = true
       const nextDirection = offsetX < 0 ? 1 : -1
+      if (!canTurn(nextDirection)) {
+        session.current = null
+        return
+      }
       directionRef.current = nextDirection
       setDirection(nextDirection)
       void prepareRenderer(nextDirection)

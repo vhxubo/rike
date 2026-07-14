@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import type { CalendarView } from '@/features/calendar'
+import { clampDateToPeriod, readSystemConfig } from '@/features/system-config'
 import {
   addISODate,
   addISOMonth,
@@ -61,6 +62,7 @@ function isCalendarView(value: unknown): value is CalendarView {
 }
 
 export function migratePlanPersistedState(persistedState: unknown): PlanPersistedState {
+  const period = readSystemConfig().period
   const candidate =
     persistedState && typeof persistedState === 'object'
       ? (persistedState as {
@@ -72,7 +74,10 @@ export function migratePlanPersistedState(persistedState: unknown): PlanPersiste
 
   return {
     selectedDate:
-      typeof candidate.selectedDate === 'string' ? candidate.selectedDate : getTodayISO(),
+      clampDateToPeriod(
+        typeof candidate.selectedDate === 'string' ? candidate.selectedDate : getTodayISO(),
+        period,
+      ),
     calendarView:
       candidate.calendarView === 'year'
         ? 'month'
@@ -124,13 +129,13 @@ function setRecord(records: PlanRecords, date: string, record: DayPlanRecord): P
 export const usePlanStore = create<PlanStore>()(
   persist(
     (set, get) => ({
-      selectedDate: getTodayISO(),
+      selectedDate: clampDateToPeriod(getTodayISO(), readSystemConfig().period),
       calendarView: 'day',
       records: {},
       hydrationState: 'hydrating',
 
       setSelectedDate(date) {
-        set({ selectedDate: date })
+        set({ selectedDate: clampDateToPeriod(date, readSystemConfig().period) })
       },
 
       setCalendarView(calendarView) {
@@ -138,25 +143,38 @@ export const usePlanStore = create<PlanStore>()(
       },
 
       setCalendarCursor(selectedDate, calendarView) {
-        set({ selectedDate, calendarView })
+        set({
+          selectedDate: clampDateToPeriod(selectedDate, readSystemConfig().period),
+          calendarView,
+        })
       },
 
       openDateInDayView(date) {
-        set({ selectedDate: date, calendarView: 'day' })
+        set({
+          selectedDate: clampDateToPeriod(date, readSystemConfig().period),
+          calendarView: 'day',
+        })
       },
 
       navigateDate(amount) {
-        set((state) => ({ selectedDate: addISODate(state.selectedDate, amount) }))
+        set((state) => ({
+          selectedDate: clampDateToPeriod(
+            addISODate(state.selectedDate, amount),
+            readSystemConfig().period,
+          ),
+        }))
       },
 
       navigateRange(amount) {
         set((state) => ({
-          selectedDate:
+          selectedDate: clampDateToPeriod(
             state.calendarView === 'day'
               ? addISODate(state.selectedDate, amount)
               : state.calendarView === 'week'
                 ? addISOWeek(state.selectedDate, amount)
                 : addISOMonth(state.selectedDate, amount),
+            readSystemConfig().period,
+          ),
         }))
       },
 

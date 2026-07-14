@@ -8,6 +8,7 @@ export type GuidanceCategory =
   | 'reflection'
 
 export interface DailyGuidance {
+  date: string
   id: string
   text: string
   category: GuidanceCategory

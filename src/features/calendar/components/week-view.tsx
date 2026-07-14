@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckSquare2, Clock3 } from 'lucide-react'
+import { useState } from 'react'
 
+import { isDateInPeriod, readSystemConfig } from '@/features/system-config'
 import { cn } from '@/lib/cn'
 import { formatWeekday, getTodayISO, getWeekDates } from '@/features/plans/date'
 import { calculateDayOverview, calculateWeekSummary } from '@/features/plans/statistics'
@@ -22,11 +24,12 @@ function StatusIcon({ status }: { status: DayOverviewStatus }) {
 }
 
 export function WeekView({ date, interactive = true }: { date: string; interactive?: boolean }) {
+  const [{ period }] = useState(readSystemConfig)
   const records = usePlanStore((state) => state.records)
   const openDate = usePlanStore((state) => state.openDateInDayView)
   const today = getTodayISO()
   const dates = getWeekDates(date)
-  const summary = calculateWeekSummary(date, records)
+  const summary = calculateWeekSummary(date, records, today, period)
   const completion = summary.totalPlans
     ? Math.round((summary.completedPlans / summary.totalPlans) * 100)
     : 0
@@ -34,22 +37,24 @@ export function WeekView({ date, interactive = true }: { date: string; interacti
   return (
     <div className="grid gap-3 sm:grid-cols-2" aria-label="本周七日概览">
       {dates.map((day, index) => {
-        const overview = calculateDayOverview(day, records, today)
+        const inPeriod = isDateInPeriod(day, period)
+        const overview = calculateDayOverview(day, records, today, period)
         const selected = day === date
         const isToday = day === today
         const isSunday = index === 6
 
         return (
           <button
-            aria-label={`${day} ${formatWeekday(day)}，${statusLabels[overview.status]}`}
+            aria-label={`${day} ${formatWeekday(day)}，${inPeriod ? statusLabels[overview.status] : '区间外'}`}
             className={cn(
               'min-h-28 border border-line-strong bg-paper/92 p-4 text-left transition-colors',
               'hover:border-ink disabled:pointer-events-none',
               selected && 'border-2 border-ink',
+              !inPeriod && 'cursor-not-allowed opacity-30',
               overview.status === 'completed' && 'bg-jade-soft/70 text-jade',
               overview.status === 'missed' && 'border-cinnabar bg-missed text-cinnabar',
             )}
-            disabled={!interactive}
+            disabled={!interactive || !inPeriod}
             key={day}
             onClick={() => openDate(day)}
             type="button"

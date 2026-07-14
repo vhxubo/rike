@@ -15,6 +15,7 @@ import type {
 } from '@/features/plans/model'
 import { getItemDisplayStatus } from '@/features/plans/status'
 import { getWeekdayTemplate, isEffectiveWeekdayItem } from '@/features/plans/templates'
+import { isDateInPeriod, type SystemPeriod } from '@/features/system-config'
 
 export interface WeekSummary {
   planCharacterCount: number
@@ -51,8 +52,9 @@ export function calculateWeekSummary(
   weekDate: string,
   records: PlanRecords,
   asOfDate = getTodayISO(),
+  period?: SystemPeriod,
 ): WeekSummary {
-  const summary = calculateStatisticsSummary('week', weekDate, records, asOfDate)
+  const summary = calculateStatisticsSummary('week', weekDate, records, asOfDate, period)
   return {
     planCharacterCount: summary.planCharacterCount,
     journalCharacterCount: summary.journalCharacterCount,
@@ -68,6 +70,7 @@ function getStatisticsDates(
   anchorDate: string,
   records: PlanRecords,
   asOfDate: string,
+  period?: SystemPeriod,
 ) {
   let dates: string[]
 
@@ -76,9 +79,11 @@ function getStatisticsDates(
   else if (range === 'year') dates = getYearDates(anchorDate)
   else {
     const historicalRecordDates = Object.keys(records)
-      .filter((date) => compareISODates(date, asOfDate) <= 0)
+      .filter((date) =>
+        compareISODates(date, asOfDate) <= 0 && (!period || isDateInPeriod(date, period)),
+      )
       .sort()
-    const startDate = historicalRecordDates[0] ?? asOfDate
+    const startDate = historicalRecordDates[0] ?? period?.startDate ?? asOfDate
     const startYearDates = getYearDates(startDate)
     const endYearDates = getYearDates(asOfDate)
     dates = [...startYearDates]
@@ -89,7 +94,9 @@ function getStatisticsDates(
     dates = dates.filter((date) => compareISODates(date, startDate) >= 0)
   }
 
-  return dates.filter((date) => compareISODates(date, asOfDate) <= 0)
+  return dates.filter(
+    (date) => compareISODates(date, asOfDate) <= 0 && (!period || isDateInPeriod(date, period)),
+  )
 }
 
 export function calculateStatisticsSummary(
@@ -97,8 +104,9 @@ export function calculateStatisticsSummary(
   anchorDate: string,
   records: PlanRecords,
   asOfDate = getTodayISO(),
+  period?: SystemPeriod,
 ): StatisticsSummary {
-  const dates = getStatisticsDates(range, anchorDate, records, asOfDate)
+  const dates = getStatisticsDates(range, anchorDate, records, asOfDate, period)
   const summary: StatisticsSummary = {
     planCharacterCount: 0,
     journalCharacterCount: 0,
@@ -173,6 +181,7 @@ export function calculateDayOverview(
   date: string,
   records: PlanRecords,
   asOfDate = getTodayISO(),
+  period?: SystemPeriod,
 ): DayOverview {
   const overview: DayOverview = {
     totalPlans: 0,
@@ -181,6 +190,7 @@ export function calculateDayOverview(
     status: 'empty',
   }
   const kind = getDayKind(date)
+  if (period && !isDateInPeriod(date, period)) return overview
   const record = records[date]
   const resolutions: ItemResolution[] = []
 

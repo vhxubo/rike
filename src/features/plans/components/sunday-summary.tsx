@@ -22,8 +22,9 @@ function Metric({ label, value, suffix }: { label: string; value: number; suffix
 }
 
 export function SundaySummary({ date }: SundaySummaryProps) {
+  const [{ period }] = useState(readSystemConfig)
   const records = usePlanStore((state) => state.records)
-  const summary = calculateWeekSummary(date, records)
+  const summary = calculateWeekSummary(date, records, undefined, period)
   const weekDates = getWeekDates(date)
   const maxMissed = Math.max(1, ...Object.values(summary.missedBySubject))
 
@@ -71,3 +72,6 @@ export function SundaySummary({ date }: SundaySummaryProps) {
     </div>
   )
 }
+import { useState } from 'react'
+
+import { readSystemConfig } from '@/features/system-config'

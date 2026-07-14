@@ -22,9 +22,8 @@ import {
   getWeekDates,
   parseISODate,
 } from '@/features/plans/date'
-import type { PlanRecords, PlanTemplateItem } from '@/features/plans/model'
+import type { PlanRecords } from '@/features/plans/model'
 import { usePlanStore } from '@/features/plans/store'
-import { getWeekdayTemplate } from '@/features/plans/templates'
 
 interface PrizeDefinition {
   id: string
@@ -129,48 +128,8 @@ function getBlankSixthTaskDates(targets: WheelExemptionTarget[], records: PlanRe
     .filter((date) => isSixthTaskBlank(date, records))
 }
 
-function getPlanText(item: PlanTemplateItem, input: string) {
-  if (item.editableMode === 'full-input') return input
-  return `${item.prefix}${input}${item.suffix ?? ''}`
-}
-
 function isWithinPeriod(date: string, startDate: string, endDate: string) {
   return date >= startDate && date <= endDate
-}
-
-function countCompletedPapers(
-  records: PlanRecords,
-  spins: WheelSpinRecord[],
-  startDate: string,
-  endDate: string,
-) {
-  const exemptedItems = new Set<string>()
-  for (const spin of spins) {
-    if (!spin.applied) continue
-    for (const target of spin.targets) {
-      if (target.itemIds === 'all') exemptedItems.add(`${target.date}:*`)
-      else for (const itemId of target.itemIds) exemptedItems.add(`${target.date}:${itemId}`)
-    }
-  }
-
-  let count = 0
-  for (const [date, record] of Object.entries(records)) {
-    if (!isWithinPeriod(date, startDate, endDate)) continue
-    if (record.kind === 'weekday') {
-      for (const item of getWeekdayTemplate(date)) {
-        if (record.resolutions[item.id] !== 'completed') continue
-        if (exemptedItems.has(`${date}:*`) || exemptedItems.has(`${date}:${item.id}`)) continue
-        if (getPlanText(item, record.inputs[item.id] ?? '').includes('试卷')) count += 1
-      }
-      continue
-    }
-    for (const item of record.items) {
-      if (item.resolution !== 'completed') continue
-      if (exemptedItems.has(`${date}:*`) || exemptedItems.has(`${date}:${item.id}`)) continue
-      if (item.text.includes('试卷')) count += 1
-    }
-  }
-  return Math.min(3, count)
 }
 
 function createSpinId() {
@@ -192,6 +151,8 @@ export function FishingWheelPage() {
   const hydrationState = usePlanStore((state) => state.hydrationState)
   const applyWheelExemptions = usePlanStore((state) => state.applyWheelExemptions)
   const spins = useFishingWheelStore((state) => state.spins)
+  const paperRewardCount = useFishingWheelStore((state) => state.paperRewardCount)
+  const claimPaperReward = useFishingWheelStore((state) => state.claimPaperReward)
   const recordSpin = useFishingWheelStore((state) => state.recordSpin)
   const markApplied = useFishingWheelStore((state) => state.markApplied)
   const [today, setToday] = useState(getTodayISO)
@@ -221,7 +182,7 @@ export function FishingWheelPage() {
   const sixthTaskBlank = isSixthTaskBlank(nextWorkday, records)
   const prizeDefinitions = useMemo(() => getPrizeDefinitions(sixthTaskBlank), [sixthTaskBlank])
   const periodActive = isWithinPeriod(today, period.startDate, period.endDate)
-  const paperRewardsEarned = countCompletedPapers(records, spins, period.startDate, period.endDate)
+  const paperRewardsEarned = paperRewardCount
   const paperRewardsUsed = spins.filter(
     (spin) => spin.source === 'paper' && isWithinPeriod(spin.spinDate, period.startDate, period.endDate),
   ).length
@@ -282,8 +243,11 @@ export function FishingWheelPage() {
     setSpinning(false)
   }
 
-  const startSpin = () => {
-    if (!wheelReady || spinning || remainingSpins <= 0) return
+  const startSpin = (source?: 'daily' | 'paper', newPaperReward = false) => {
+    const spinSource = source ?? (dailySpinUsed ? 'paper' : 'daily')
+    if (!wheelReady || spinning) return
+    if (spinSource === 'daily' && dailySpinUsed) return
+    if (spinSource === 'paper' && !newPaperReward && paperRewardsAvailable <= 0) return
     if (
       sixthTaskBlank &&
       !window.confirm(
@@ -294,12 +258,18 @@ export function FishingWheelPage() {
     const index = pickPrizeIndex(prizeDefinitions)
     pendingPrize.current = {
       prize: prizeDefinitions[index],
-      source: dailySpinUsed ? 'paper' : 'daily',
+      source: spinSource,
       spinDate: today,
     }
     setSpinning(true)
     wheelRef.current?.play()
     window.setTimeout(() => wheelRef.current?.stop(index), 750)
+  }
+
+  const writePaperAndSpin = () => {
+    if (!wheelReady || spinning || paperRewardsEarned >= 3) return
+    claimPaperReward()
+    startSpin('paper', true)
   }
 
   return (
@@ -340,6 +310,10 @@ export function FishingWheelPage() {
             <p className="text-sm text-graphite">奖励获取/上限 <strong className="font-data text-ink">({paperRewardsEarned}/3)</strong></p>
             <p className="text-sm text-graphite">奖励已用/上限 <strong className="font-data text-ink">({paperRewardsUsed}/3)</strong></p>
           </div>
+
+          <Button disabled={!wheelReady || spinning || paperRewardsEarned >= 3} onClick={writePaperAndSpin} variant="secondary">
+            写完一张试卷 +1 并抽奖 ({paperRewardsEarned}/3)
+          </Button>
 
           {latestSpin && (
             <InlineNotice className="w-full" title={latestSpin.title} tone={latestSpin.prizeId === 'none' ? 'info' : 'success'}>
@@ -383,7 +357,7 @@ export function FishingWheelPage() {
           </ol>
         ) : (
           <EmptyState
-            description="每日一次；完成含“试卷”的计划可获得额外次数。"
+            description="点击写完试卷，直接增加一次并开转。"
             icon={Dices}
             title="还没有转盘记录"
           />
