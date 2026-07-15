@@ -25,7 +25,7 @@ const rowStyles = tv({
 })
 
 const inputStyles = tv({
-  base: 'min-w-0 border-0 border-b bg-transparent px-1 font-task text-ink outline-none focus-visible:border-cinnabar focus-visible:outline-none',
+  base: 'w-full min-w-0 border-0 border-b bg-transparent px-1 font-task text-ink outline-none focus-visible:border-cinnabar focus-visible:outline-none',
   variants: {
     size: {
       default: 'min-h-9 text-base',

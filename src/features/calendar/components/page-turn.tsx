@@ -31,6 +31,7 @@ interface PageTurnProps {
 interface PageFlipInstance {
   flipNext: () => void
   flipPrev: () => void
+  getSettings: () => { disableFlipByClick: boolean }
   turnToPage: (page: number) => void
 }
 
@@ -92,6 +93,18 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     pageFlip.current?.turnToPage(1)
   }, [])
 
+  const flipProgrammatically = useCallback((amount: -1 | 1) => {
+    const flip = pageFlip.current
+    if (!flip) return
+
+    const settings = flip.getSettings()
+    const disableFlipByClick = settings.disableFlipByClick
+    settings.disableFlipByClick = false
+    if (amount === 1) flip.flipNext()
+    else flip.flipPrev()
+    settings.disableFlipByClick = disableFlipByClick
+  }, [])
+
   const turn = useCallback((amount: -1 | 1) => {
     if (!canTurn(amount)) return
     if (reduceMotion) {
@@ -104,15 +117,13 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
       else delete surface.current.dataset.pageTurnDirection
     }
     if (pageFlip.current) {
-      if (amount === 1) pageFlip.current.flipNext()
-      else pageFlip.current.flipPrev()
+      flipProgrammatically(amount)
       return
     }
     requestAnimationFrame(() => {
-      if (amount === 1) pageFlip.current?.flipNext()
-      else pageFlip.current?.flipPrev()
+      flipProgrammatically(amount)
     })
-  }, [canTurn, onTurn, reduceMotion])
+  }, [canTurn, flipProgrammatically, onTurn, reduceMotion])
 
   useEffect(() => {
     const frame = requestAnimationFrame(reset)
@@ -137,6 +148,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
           autoSize={false}
           className="page-turn-surface"
           clickEventForward
+          disableFlipByClick
           drawShadow
           flippingTime={reduceMotion ? 1 : 700}
           height={bookSize.height}
