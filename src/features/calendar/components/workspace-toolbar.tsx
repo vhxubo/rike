@@ -42,7 +42,7 @@ const destinations = [
   { value: 'month', label: '月视图', icon: BarChart3 },
   { value: 'week-summary', label: '本周总结', icon: Rows3 },
   { value: 'statistics', label: '总统计', icon: ChartNoAxesCombined },
-  { value: 'favorites', label: '每日一句收藏', icon: Heart },
+  { value: 'favorites', label: '每日赞语收藏', icon: Heart },
   { value: 'fishing-wheel', label: '摸鱼大转盘', icon: Dices },
 ] satisfies Array<{ value: ToolbarDestination; label: string; icon: typeof Rows3 }>
 

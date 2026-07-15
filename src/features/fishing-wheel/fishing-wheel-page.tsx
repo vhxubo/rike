@@ -308,7 +308,6 @@ export function FishingWheelPage() {
           <div className="flex w-full flex-wrap justify-center gap-x-6 gap-y-2 border-y border-line bg-paper/90 px-3 py-3 text-center">
             <p className="text-sm text-graphite">今日已用/总数 <strong className="font-data text-ink">({todaySpinsUsed}/{todaySpinsTotal})</strong></p>
             <p className="text-sm text-graphite">奖励获取/上限 <strong className="font-data text-ink">({paperRewardsEarned}/3)</strong></p>
-            <p className="text-sm text-graphite">奖励已用/上限 <strong className="font-data text-ink">({paperRewardsUsed}/3)</strong></p>
           </div>
 
           <Button disabled={!wheelReady || spinning || paperRewardsEarned >= 3} onClick={writePaperAndSpin} variant="secondary">
@@ -322,12 +321,6 @@ export function FishingWheelPage() {
             </InlineNotice>
           )}
         </div>
-      </RuledSection>
-
-      <RuledSection className="border-b border-line py-4">
-        <p className="text-center text-xs leading-6 text-graphite">
-          概率：任务 8% · 周六 0.5% · 单日 0.5% · 下周 0.001% · 其余未中
-        </p>
       </RuledSection>
 
       <RuledSection className="pb-10 sm:pb-12" eyebrow="History" title="中奖记录">

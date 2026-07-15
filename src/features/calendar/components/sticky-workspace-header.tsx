@@ -1,4 +1,4 @@
-import { BookOpenCheck } from 'lucide-react'
+import { ArrowLeft, BookOpenCheck } from 'lucide-react'
 
 import {
   WorkspaceToolbar,
@@ -7,6 +7,7 @@ import {
 
 interface StickyWorkspaceHeaderProps {
   canGoBack: boolean
+  isWeekSummary: boolean
   onBack: () => void
   onNavigate: (destination: ToolbarDestination) => void
   onOpenWeekSummary: () => void
@@ -14,6 +15,7 @@ interface StickyWorkspaceHeaderProps {
 
 export function StickyWorkspaceHeader({
   canGoBack,
+  isWeekSummary,
   onBack,
   onNavigate,
   onOpenWeekSummary,
@@ -28,13 +30,15 @@ export function StickyWorkspaceHeader({
 
       <div className="flex shrink-0 items-center" data-no-date-swipe>
         <button
-          aria-label="查看本周总结"
+          aria-label={isWeekSummary ? '返回上一页面' : '查看本周总结'}
           className="grid size-9 place-items-center border border-transparent text-ink hover:border-line-strong hover:bg-workbench"
           onClick={onOpenWeekSummary}
-          title="查看本周总结"
+          title={isWeekSummary ? '返回上一页面' : '查看本周总结'}
           type="button"
         >
-          <BookOpenCheck aria-hidden="true" size={18} strokeWidth={1.7} />
+          {isWeekSummary
+            ? <ArrowLeft aria-hidden="true" size={18} strokeWidth={1.7} />
+            : <BookOpenCheck aria-hidden="true" size={18} strokeWidth={1.7} />}
         </button>
       </div>
     </header>

@@ -28,7 +28,6 @@ import {
 } from '@/features/daily-guidance'
 import { FishingWheelPage } from '@/features/fishing-wheel/fishing-wheel-page'
 import {
-  clampDateToPeriod,
   isDateInPeriod,
   readSystemConfig,
 } from '@/features/system-config'
@@ -99,7 +98,7 @@ function DailyGuidanceCard({
       <Quote aria-hidden="true" className="mt-0.5 shrink-0 text-cinnabar" size={16} strokeWidth={1.6} />
       <div className="flex min-w-0 flex-1 items-start gap-1">
         <button
-          aria-label="复制每日一句"
+          aria-label="复制每日赞语"
           className="group min-w-0 flex-1 cursor-copy border-0 bg-transparent p-0 text-left"
           disabled={!interactive}
           onClick={() => onCopy(guidance.text, key)}
@@ -114,7 +113,7 @@ function DailyGuidanceCard({
           aria-pressed={isFavorite}
           className={isFavorite ? '!size-8 !min-h-8 !text-cinnabar' : '!size-8 !min-h-8 text-graphite hover:!text-cinnabar'}
           disabled={!interactive}
-          label={isFavorite ? '取消收藏每日一句' : '收藏每日一句'}
+          label={isFavorite ? '取消收藏每日赞语' : '收藏每日赞语'}
           onClick={() => onToggleFavorite(guidance.date, guidance)}
           variant="ghost"
         >
@@ -147,7 +146,7 @@ function FavoritesPage({
 
   return (
     <PaperSheet>
-      <RuledSection className="pb-10 sm:pb-12" eyebrow="Favorites" title="每日一句收藏">
+      <RuledSection className="pb-10 sm:pb-12" eyebrow="Favorites" title="每日赞语收藏">
         {sortedFavorites.length ? (
           <ol className="grid gap-5">
             {sortedFavorites.map((favorite) => {
@@ -156,7 +155,7 @@ function FavoritesPage({
                 <li className="border-b border-line pb-5 last:border-b-0" key={key}>
                   <div className="flex items-start gap-2">
                     <button
-                      aria-label="复制收藏的每日一句"
+                      aria-label="复制收藏的每日赞语"
                       className="group min-w-0 flex-1 cursor-copy border-0 bg-transparent p-0 text-left"
                       onClick={() => onCopy(favorite.text, key)}
                       type="button"
@@ -169,7 +168,7 @@ function FavoritesPage({
                       </p>
                       {copiedKey === key && <span className="font-data text-[10px] text-jade">已复制</span>}
                     </button>
-                    <IconButton label="取消收藏每日一句" onClick={() => onRemove(favorite)} variant="ghost">
+                    <IconButton label="取消收藏每日赞语" onClick={() => onRemove(favorite)} variant="ghost">
                       <Heart aria-hidden="true" fill="currentColor" size={19} strokeWidth={1.7} />
                     </IconButton>
                   </div>
@@ -179,7 +178,7 @@ function FavoritesPage({
           </ol>
         ) : (
           <EmptyState
-            description="在每日一句右侧点击心形图标，就能把喜欢的句子留在这里。"
+            description="在每日赞语右侧点击心形图标，就能把喜欢的句子留在这里。"
             icon={Heart}
             title="还没有收藏"
           />
@@ -317,7 +316,6 @@ export function DailyPlanPage() {
   const hydrationState = usePlanStore((state) => state.hydrationState)
   const setCalendarView = usePlanStore((state) => state.setCalendarView)
   const setCalendarCursor = usePlanStore((state) => state.setCalendarCursor)
-  const setSelectedDate = usePlanStore((state) => state.setSelectedDate)
   const navigateRange = usePlanStore((state) => state.navigateRange)
   const [workspacePage, setWorkspacePage] = useState<WorkspacePage>('calendar')
   const [returnSnapshot, setReturnSnapshot] = useState<ReturnSnapshot | null>(null)
@@ -415,22 +413,16 @@ export function DailyPlanPage() {
     setReturnSnapshot(null)
   }
 
-  const isTodayContext =
-    workspacePage === 'calendar'
-      ? calendarView === 'day'
-        ? selectedDate === today
-        : calendarView === 'week'
-          ? getWeekDates(selectedDate).includes(today)
-          : selectedDate.slice(0, 7) === today.slice(0, 7)
-      : workspacePage === 'week-summary'
-        ? getWeekDates(pageAnchor).includes(today)
-        : workspacePage === 'favorites' || workspacePage === 'fishing-wheel'
-          ? true
-        : true
+  const toggleWeekSummary = () => {
+    if (workspacePage === 'week-summary') goBack()
+    else openWeekSummary()
+  }
 
   const goToday = () => {
-    if (workspacePage === 'calendar') setSelectedDate(today)
-    else setPageAnchor(clampDateToPeriod(today, period))
+    setCalendarCursor(today, 'day')
+    setWorkspacePage('calendar')
+    setPageAnchor(today)
+    setReturnSnapshot(null)
   }
 
   useEffect(() => {
@@ -464,10 +456,11 @@ export function DailyPlanPage() {
     <AppShell>
       <div>
         <StickyWorkspaceHeader
-          canGoBack={Boolean(returnSnapshot) && !isCanonicalTodayDay}
+          canGoBack={Boolean(returnSnapshot) && !isCanonicalTodayDay && workspacePage !== 'week-summary'}
+          isWeekSummary={workspacePage === 'week-summary'}
           onBack={goBack}
           onNavigate={openDestination}
-          onOpenWeekSummary={openWeekSummary}
+          onOpenWeekSummary={toggleWeekSummary}
         />
         <div ref={workspaceRef}>
           {workspacePage === 'calendar' && (
@@ -512,7 +505,7 @@ export function DailyPlanPage() {
           )}
         </div>
       </div>
-      {!isTodayContext && isDateInPeriod(today, period) && <TodayFab onToday={goToday} />}
+      {!isCanonicalTodayDay && <TodayFab onToday={goToday} />}
     </AppShell>
   )
 }

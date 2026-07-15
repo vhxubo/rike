@@ -25,11 +25,15 @@ const rowStyles = tv({
 })
 
 const inputStyles = tv({
-  base: 'min-w-0 border-0 border-b bg-transparent px-1 font-task text-ink outline-none placeholder:text-graphite/55 focus-visible:border-cinnabar focus-visible:outline-none',
+  base: 'min-w-0 border-0 border-b bg-transparent px-1 font-task text-ink outline-none focus-visible:border-cinnabar focus-visible:outline-none',
   variants: {
     size: {
       default: 'min-h-9 text-base',
       large: 'min-h-13 border-b-2 text-xl',
+    },
+    editable: {
+      true: 'border-dashed border-line-strong',
+      false: 'border-transparent',
     },
     completed: {
       true: 'line-through opacity-55',
@@ -85,10 +89,9 @@ export function PlanItemRow({
   const inputControl = (
     <input
       aria-label={`第 ${item.order} 项计划内容`}
-      className={inputStyles({ size, completed })}
+      className={inputStyles({ size, completed, editable: canEdit })}
       onChange={(event) => onInputChange(event.target.value)}
       onKeyDown={onInputKeyDown}
-      placeholder="填写内容"
       readOnly={!canEdit}
       ref={inputRef}
       type="text"

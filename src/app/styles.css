@@ -60,8 +60,34 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--color-line-strong) var(--color-paper);
+  scrollbar-width: thin;
   -webkit-user-select: none;
   user-select: none;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-paper);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid var(--color-paper);
+  border-radius: 0;
+  background: var(--color-line-strong);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-graphite);
+}
+
+*::-webkit-scrollbar-corner {
+  border-radius: 0;
+  background: var(--color-paper);
 }
 
 input,
@@ -73,16 +99,22 @@ textarea,
 }
 
 html {
+  height: 100%;
   min-width: 320px;
-  min-height: 100%;
+  overflow: hidden;
   background: var(--color-workbench);
 }
 
 body {
+  height: 100%;
   min-width: 320px;
-  min-height: 100vh;
   margin: 0;
+  overflow: hidden;
   background-color: var(--color-workbench);
+}
+
+#root {
+  height: 100%;
 }
 
 button,
@@ -172,6 +204,7 @@ button,
 
 .page-turn-page > main {
   min-height: 100%;
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
 }
 
 .page-turn-page {

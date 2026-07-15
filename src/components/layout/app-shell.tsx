@@ -8,7 +8,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-dvh overflow-x-clip bg-workbench sm:py-3 lg:py-4">
+    <div className="h-dvh overflow-hidden bg-workbench pb-[calc(1rem+env(safe-area-inset-bottom))] sm:py-3 sm:pb-[calc(.75rem+env(safe-area-inset-bottom))] lg:py-4 lg:pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <PageContainer>{children}</PageContainer>
     </div>
   )
