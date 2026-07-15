@@ -192,6 +192,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
           autoSize={false}
           className="page-turn-surface"
           clickEventForward
+          disableFlipByClick={false}
           drawShadow
           flippingTime={reduceMotion ? 1 : 700}
           height={bookSize.height}
