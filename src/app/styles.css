@@ -208,6 +208,7 @@ button,
 }
 
 .page-turn-page {
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }

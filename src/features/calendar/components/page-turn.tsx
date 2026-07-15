@@ -8,8 +8,8 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type PointerEvent,
   type ReactNode,
+  type SyntheticEvent,
 } from 'react'
 
 import { canStartDateSwipe } from '@/features/plans/gestures'
@@ -32,14 +32,6 @@ interface PageFlipInstance {
   flipNext: () => void
   flipPrev: () => void
   turnToPage: (page: number) => void
-}
-
-interface SwipeSession {
-  edge: 'left' | 'right'
-  id: number
-  horizontal: boolean
-  startX: number
-  startY: number
 }
 
 const BookPage = forwardRef<HTMLDivElement, { children: ReactNode; inactive?: boolean }>(
@@ -72,7 +64,6 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   const pageFlip = useRef<PageFlipInstance | null>(null)
   const pendingTurn = useRef<-1 | 1 | null>(null)
   const surface = useRef<HTMLDivElement>(null)
-  const swipe = useRef<SwipeSession | null>(null)
   const [bookSize, setBookSize] = useState<{ height: number; width: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -130,61 +121,15 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
 
   useImperativeHandle(ref, () => ({ turn, cancel: reset }), [reset, turn])
 
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary) {
-      swipe.current = null
-      return
-    }
-    if (!canStartDateSwipe(event.target)) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const edgeWidth = Math.min(96, bounds.width * 0.22)
-    const edge = event.clientX - bounds.left <= edgeWidth
-      ? 'left'
-      : bounds.right - event.clientX <= edgeWidth
-        ? 'right'
-        : null
-    if (!edge) return
-    swipe.current = {
-      edge,
-      id: event.pointerId,
-      horizontal: false,
-      startX: event.clientX,
-      startY: event.clientY,
-    }
-  }
-
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const current = swipe.current
-    if (!current || current.id !== event.pointerId) return
-    const offsetX = event.clientX - current.startX
-    const offsetY = event.clientY - current.startY
-    if (!current.horizontal) {
-      if (Math.abs(offsetX) < 12 && Math.abs(offsetY) < 12) return
-      if (Math.abs(offsetX) <= Math.abs(offsetY)) {
-        swipe.current = null
-        return
-      }
-      current.horizontal = true
-    }
-    event.preventDefault()
-  }
-
-  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    const current = swipe.current
-    swipe.current = null
-    if (!current || current.id !== event.pointerId || !current.horizontal) return
-    const offsetX = event.clientX - current.startX
-    if (current.edge === 'left' && offsetX >= 48) turn(-1)
-    if (current.edge === 'right' && offsetX <= -48) turn(1)
+  const preserveControlInteraction = (event: SyntheticEvent) => {
+    if (!canStartDateSwipe(event.target)) event.stopPropagation()
   }
 
   return (
     <div
       className={`page-turn-frame ${className ?? ''}`}
-      onPointerCancel={() => { swipe.current = null }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
+      onMouseDownCapture={preserveControlInteraction}
+      onTouchStartCapture={preserveControlInteraction}
       ref={surface}
     >
       {bookSize && (
@@ -192,7 +137,6 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
           autoSize={false}
           className="page-turn-surface"
           clickEventForward
-          disableFlipByClick={false}
           drawShadow
           flippingTime={reduceMotion ? 1 : 700}
           height={bookSize.height}
@@ -231,7 +175,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
           startZIndex={0}
           style={{ maxWidth: '100%' }}
           swipeDistance={32}
-          useMouseEvents={false}
+          useMouseEvents
           usePortrait
           width={bookSize.width}
         >
