@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  base: '/rike/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
