@@ -3,16 +3,16 @@ import { useReducedMotion } from 'motion/react'
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
   type SyntheticEvent,
+  type TouchEvent,
 } from 'react'
 
-import { canStartDateSwipe } from '@/features/plans/gestures'
+import { canStartDateSwipe, getDateSwipeAmount } from '@/features/plans/gestures'
 
 export interface PageTurnHandle {
   turn: (amount: -1 | 1) => void
@@ -65,6 +65,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
   const pageFlip = useRef<PageFlipInstance | null>(null)
   const pendingTurn = useRef<-1 | 1 | null>(null)
   const surface = useRef<HTMLDivElement>(null)
+  const touchStart = useRef<{ time: number; x: number; y: number } | null>(null)
   const [bookSize, setBookSize] = useState<{ height: number; width: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -125,22 +126,57 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
     })
   }, [canTurn, flipProgrammatically, onTurn, reduceMotion])
 
-  useEffect(() => {
-    const frame = requestAnimationFrame(reset)
-    return () => cancelAnimationFrame(frame)
-  }, [currentKey, reset])
-
   useImperativeHandle(ref, () => ({ turn, cancel: reset }), [reset, turn])
 
   const preserveControlInteraction = (event: SyntheticEvent) => {
     if (!canStartDateSwipe(event.target)) event.stopPropagation()
   }
 
+  const handleTouchStart = (event: TouchEvent) => {
+    if (!canStartDateSwipe(event.target)) {
+      event.stopPropagation()
+      return
+    }
+    const touch = event.touches[0]
+    touchStart.current = { time: performance.now(), x: touch.clientX, y: touch.clientY }
+    event.stopPropagation()
+  }
+
+  const handleTouchMove = (event: TouchEvent) => {
+    if (touchStart.current) event.stopPropagation()
+  }
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    event.stopPropagation()
+
+    const touch = event.changedTouches[0]
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaX) <= Math.abs(deltaY)) return
+
+    const amount = getDateSwipeAmount(
+      deltaX,
+      deltaX / Math.max((performance.now() - start.time) / 1000, 0.001),
+    )
+    if (amount) turn(amount)
+  }
+
+  const handleTouchCancel = (event: TouchEvent) => {
+    touchStart.current = null
+    event.stopPropagation()
+  }
+
   return (
     <div
       className={`page-turn-frame ${className ?? ''}`}
       onMouseDownCapture={preserveControlInteraction}
-      onTouchStartCapture={preserveControlInteraction}
+      onTouchCancelCapture={handleTouchCancel}
+      onTouchEndCapture={handleTouchEnd}
+      onTouchMoveCapture={handleTouchMove}
+      onTouchStartCapture={handleTouchStart}
       ref={surface}
     >
       {bookSize && (
@@ -152,7 +188,7 @@ export const PageTurn = forwardRef<PageTurnHandle, PageTurnProps>(function PageT
           drawShadow
           flippingTime={reduceMotion ? 1 : 700}
           height={bookSize.height}
-          key={`${bookSize.width}:${bookSize.height}`}
+          key={`${currentKey}:${bookSize.width}:${bookSize.height}`}
           maxHeight={960}
           maxShadowOpacity={0.38}
           maxWidth={1024}
